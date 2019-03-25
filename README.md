@@ -26,3 +26,5 @@ Example:
 This is super rough, just wanted to get something working for now, and I may or may not improve it later. If anyone wants to improve it then by all means go for it. Would be great to get it to hook into the already implemented AutoSplitters for LiveSplit but I have no clue how to do that.
 
 Any questions feel free to ask.
+
+Example of it running: https://youtu.be/K0eXAhT2AB4
