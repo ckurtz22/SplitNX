@@ -25,8 +25,15 @@ u64 findHeapBase(Handle debugHandle) {
     return memInfo.addr;
 }
 
-u64 readMemory(Handle debugHandle, u64 address, size_t size) {
+u64 readMemory(u64 address, size_t size) {
     u64 val;
-    svcReadDebugProcessMemory(&val, debugHandle, address, size);
+    Handle handle = getDebugHandle();
+    if (handle == 0) return 0;
+
+    u64 heapBase = findHeapBase(handle);
+
+    svcReadDebugProcessMemory(&val, handle, heapBase + address, size);
+    svcCloseHandle(handle);
+
     return val;
 }
