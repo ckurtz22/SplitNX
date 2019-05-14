@@ -16,7 +16,7 @@ typedef struct Split {
     u64 address;
     u64 value;
     size_t size;
-    enum Operator operator;
+    enum Operator op;
 } Split;
 
 typedef struct Splits {
@@ -25,7 +25,8 @@ typedef struct Splits {
 } Splits;
 
 
-int getSplitIndex(int sock);
+int getSplitIndex();
 bool doOperator(u64 param1, u64 param2, enum Operator op);
-bool autoSplit(Splits splits, int index);
-void splitterInit(int* sock, Splits* splits);
+bool autoSplit(int index);
+void splitterInit();
+void addSplit(const char* buffer);

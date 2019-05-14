@@ -1,13 +1,13 @@
 #include "split.h"
 
-#include <errno.h>
+Splits splits;
 
-
-int getSplitIndex(int sock) {
-    send_msg(sock, "getsplitindex\r\n");
+int getSplitIndex() {
+    send_msg("getsplitindex\r\n");
     char buffer[50];
-    recv(sock, buffer, sizeof(buffer), 0);
-    for (int i = 0; i < 50; i++) 
+    if(recv_msg(buffer, sizeof(buffer)) <= 0)
+        return -1;
+    for (int i = 0; i < sizeof(buffer); i++) 
         if (buffer[i] == '\r') buffer[i] = 0;
     return atoi(buffer);
 }
@@ -24,10 +24,10 @@ bool doOperator(u64 param1, u64 param2, enum Operator op) {
     }
 }
 
-bool autoSplit(Splits splits, int index) {
+bool autoSplit(int index) {
     if (index < 0 || index >= splits.length) return false;
     Split split = splits.splits[index];
-    if (split.operator == op_unk) return false;
+    if (split.op == op_unk) return false;
 
     Handle debugHandle = getDebugHandle();
     if (debugHandle == 0) return false;
@@ -36,53 +36,62 @@ bool autoSplit(Splits splits, int index) {
     u64 val = readMemory(debugHandle, heapBase + split.address, split.size /*0x61BC93B6*/);
     svcCloseHandle(debugHandle);
 
-    return (heapBase != 0 && doOperator(val, split.value, split.operator));
+    return (heapBase != 0 && doOperator(val, split.value, split.op));
 }
 
 
-void splitterInit(int* sock, Splits* splits) {
-    if(tryConnect(sock, "192.168.1.117", 16834))
-        printf("yes\n");
-    else
-        printf("no\n");
-    
-    /*
-    char buffer[202][50];
-    memset(buffer, 0, sizeof(buffer));
+void splitterInit() {
+    char buffer[50];
+    char ip[20];
+    int port;
+    splits.length = 0;
 
+    memset(buffer, 0, sizeof(buffer));
     FILE* f = fopen("/splitter.txt", "r");
     if (f == 0) return;
 
     int i = 0;
-    while (i < 202 && fgets(buffer[i], sizeof(buffer[i]), f)) {
-        for (int j = 0; j < sizeof(buffer[i]); j++)
-            if (buffer[i][j] == '\n') buffer[i][j] = 0;
-        i++;
+
+    while (fgets(buffer, sizeof(buffer), f)) {
+        for (int j = 0; j < sizeof(buffer); j++)
+            if (buffer[j] == '\n') buffer[j] = 0;
+        switch (i++) {
+        case 0:
+            strcpy(ip, buffer);
+            break;
+        case 1:
+            port = atoi(buffer);
+            break;
+        default:
+            addSplit(buffer);
+            break;
+
+        }
     }
     fclose(f);
 
     if (i < 2) return;
-    tryConnect(sock, buffer[0], atoi(buffer[1]));
-    
-    splits->length = i - 2;
-    for (int j = 0; j < splits->length; j++) {
-        char operator[5];
-        char size[5];
-        // 0x00010 >= u32 1234
-        sscanf(buffer[j + 2], "%lx %s %s %lu", &splits->splits[j].address, operator, size, &splits->splits[j].value);
-        if      (strcmp(operator, "==") == 0) splits->splits[j].operator = eq;
-        else if (strcmp(operator, "!=") == 0) splits->splits[j].operator = ne;
-        else if (strcmp(operator, ">=") == 0) splits->splits[j].operator = ge;
-        else if (strcmp(operator, "<=") == 0) splits->splits[j].operator = le;
-        else if (strcmp(operator, ">") == 0)  splits->splits[j].operator = gt;
-        else if (strcmp(operator, "<") == 0)  splits->splits[j].operator = lt;
-        else                                  splits->splits[j].operator = op_unk;
-    
-        if      (strcmp(size, "u8") == 0)  splits->splits[j].size = sizeof(u8);
-        else if (strcmp(size, "u16") == 0) splits->splits[j].size = sizeof(u16);
-        else if (strcmp(size, "u32") == 0) splits->splits[j].size = sizeof(u32);
-        else if (strcmp(size, "u64") == 0) splits->splits[j].size = sizeof(u64);
-        else                               splits->splits[j].size = sizeof(u64);
-    }
-    */
+    tryConnect(ip, port);
+    printf("length: %d\n", splits.length);
+}
+
+void addSplit(const char* buffer) {
+    char operator[5];
+    char size[5];
+    int i = splits.length++;
+    // 0x00010 >= u32 1234
+    sscanf(buffer, "%lx %s %s %lu", &splits.splits[i].address, operator, size, &splits.splits[i].value);
+    if      (strcmp(operator, "==") == 0) splits.splits[i].op = eq;
+    else if (strcmp(operator, "!=") == 0) splits.splits[i].op = ne;
+    else if (strcmp(operator, ">=") == 0) splits.splits[i].op = ge;
+    else if (strcmp(operator, "<=") == 0) splits.splits[i].op = le;
+    else if (strcmp(operator, ">") == 0)  splits.splits[i].op = gt;
+    else if (strcmp(operator, "<") == 0)  splits.splits[i].op = lt;
+    else                                  splits.splits[i].op = op_unk;
+
+    if      (strcmp(size, "u8") == 0)  splits.splits[i].size = sizeof(u8);
+    else if (strcmp(size, "u16") == 0) splits.splits[i].size = sizeof(u16);
+    else if (strcmp(size, "u32") == 0) splits.splits[i].size = sizeof(u32);
+    else if (strcmp(size, "u64") == 0) splits.splits[i].size = sizeof(u64);
+    else                               splits.splits[i].size = sizeof(u64);
 }

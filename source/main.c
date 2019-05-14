@@ -45,7 +45,7 @@ void __attribute__((weak)) __appInit(void)
             hosversionSet(MAKEHOSVERSION(fw.major, fw.minor, fw.micro));
         setsysExit();
     }
-    //fsdevMountSdmc();
+    fsdevMountSdmc();
 }
 
 void __attribute__((weak)) userAppExit(void);
@@ -62,24 +62,20 @@ void __attribute__((weak)) __appExit(void)
 
 int main(int argc, char* argv[])
 {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    Splits splits = {.length = 0};
-
-
 	while (appletMainLoop()) {
 		hidScanInput();
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
         u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
 
-        //int index = getSplitIndex(sock);
-        //if (autoSplit(splits, index)) send_msg(sock, "split\r\n");
+        int index = getSplitIndex();
+        if (autoSplit(index)) send_msg("split\r\n");
 
         if (kHeld & KEY_ZL && kHeld & KEY_ZR && kHeld & KEY_L && kHeld && KEY_R) {
-            if (kDown & KEY_PLUS) splitterInit(&sock, &splits);
-            if (kDown & KEY_A) send_msg(sock, "startorsplit\r\n");
-            if (kDown & KEY_B) send_msg(sock, "unsplit\r\n");
-            if (kDown & KEY_X) send_msg(sock, "skipsplit\r\n");
-            if (kDown & KEY_Y) send_msg(sock, "reset\r\n");
+            if (kDown & KEY_PLUS) splitterInit();
+            if (kDown & KEY_A) send_msg("startorsplit\r\n");
+            if (kDown & KEY_B) send_msg("unsplit\r\n");
+            if (kDown & KEY_X) send_msg("skipsplit\r\n");
+            if (kDown & KEY_Y) send_msg("reset\r\n");
         }
 
         svcSleepThread(1e+8L);

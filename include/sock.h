@@ -12,5 +12,6 @@
 #include <switch.h>
 
 
-bool tryConnect(int* sock, const char* address, int port);
-void send_msg(int sock, const char* msg);
+bool tryConnect(const char* address, int port);
+ssize_t send_msg(const char* msg);
+ssize_t recv_msg(char* msg, size_t msg_size);
