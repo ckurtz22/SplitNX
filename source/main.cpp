@@ -45,10 +45,8 @@ void __appInit(void)
         fatalSimple(MAKERESULT(Module_Libnx, LibnxError_InitFail_HID));
     if (R_FAILED(fsInitialize()))
         fatalSimple(MAKERESULT(Module_Libnx, LibnxError_InitFail_FS));
-    if (R_FAILED(rc = twiliInitialize()))
-        printf("twili failed to initialize\n");
-    if (R_FAILED(rc = socketInitializeDefault()))
-        printf("socket failed to initialize\n");
+    if (R_FAILED(rc = pmdmntInitialize()))
+        fatalSimple(rc);
 
     if (R_SUCCEEDED(setsysInitialize()))
     {
@@ -57,6 +55,9 @@ void __appInit(void)
             hosversionSet(MAKEHOSVERSION(fw.major, fw.minor, fw.micro));
         setsysExit();
     }
+
+    twiliInitialize();
+    socketInitializeDefault();
     fsdevMountSdmc();
 }
 
@@ -65,6 +66,7 @@ void __appExit(void)
     fsdevUnmountAll();
     fsExit();
     hidExit();
+    pmdmntExit();
     socketExit();
     twiliExit();
     smExit();
@@ -80,17 +82,17 @@ int main(int argc, char *argv[])
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
         u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
 
-        if (kHeld & KEY_ZL && kHeld & KEY_ZR && kHeld & KEY_L && kHeld & KEY_R)
+        if (!(~kHeld & (KEY_ZL | KEY_ZR | KEY_L | KEY_R)))
         {
             if (kDown & KEY_PLUS)
                 splitter.Connect();
-            if (kDown & KEY_A)
+            else if (kDown & KEY_A)
                 splitter.Split();
-            if (kDown & KEY_B)
+            else if (kDown & KEY_B)
                 splitter.Undo();
-            if (kDown & KEY_X)
+            else if (kDown & KEY_X)
                 splitter.Skip();
-            if (kDown & KEY_Y)
+            else if (kDown & KEY_Y)
                 splitter.Reset();
         }
 

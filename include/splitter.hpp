@@ -8,13 +8,12 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-extern "C"
-{
-#include "mem.h"
-}
+#include <switch.h>
 
 
 bool doOperator(u64 param1, u64 param2, std::string op);
+u64 findHeapBase(Handle debugHandle);
+u64 readMemory(u64 address, size_t size);
 
 struct split
 {

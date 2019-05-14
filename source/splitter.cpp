@@ -79,3 +79,27 @@ bool doOperator(u64 param1, u64 param2, std::string op) {
         else if(op == "ge") return param1 >= param2;
         else return false;
 }
+
+u64 findHeapBase(Handle debugHandle) {
+    MemoryInfo memInfo = { 0 };
+    u32 pageInfo;
+    u64 lastAddr;
+    do {   
+        lastAddr = memInfo.addr;
+        svcQueryDebugProcessMemory(&memInfo, &pageInfo, debugHandle, memInfo.addr + memInfo.size);
+    } while (memInfo.type != MemType_Heap && lastAddr < memInfo.addr + memInfo.size);
+    if (memInfo.type != MemType_Heap) return 0;
+    return memInfo.addr;
+}
+
+u64 readMemory(u64 address, size_t size) {
+    u64 val, pid;
+    Handle handle;
+
+    if (R_FAILED(pmdmntGetApplicationPid(&pid))) return 0;
+    svcDebugActiveProcess(&handle, pid);
+    svcReadDebugProcessMemory(&val, handle, findHeapBase(handle) + address, size);
+    svcCloseHandle(handle);
+
+    return val;
+}
