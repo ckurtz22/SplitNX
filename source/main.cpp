@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <malloc.h>
 
 #include <switch.h>
 #include <twili.h>
@@ -9,6 +10,7 @@
 
 extern "C"
 {
+#include "mp3.h"
 #define INNER_HEAP_SIZE 0x400000
     extern u32 __start__;
 
@@ -36,29 +38,23 @@ void __libnx_initheap(void)
 
 void __appInit(void)
 {
-    Result rc;
+    smInitialize();
+
+    hidInitialize();
+    hidPermitVibration(true);
+    
+    fsInitialize();
+    fsdevMountSdmc();
+
     SetSysFirmwareVersion fw;
-
-    if (R_FAILED(smInitialize()))
-        fatalSimple(MAKERESULT(Module_Libnx, LibnxError_InitFail_SM));
-    if (R_FAILED(hidInitialize()))
-        fatalSimple(MAKERESULT(Module_Libnx, LibnxError_InitFail_HID));
-    if (R_FAILED(fsInitialize()))
-        fatalSimple(MAKERESULT(Module_Libnx, LibnxError_InitFail_FS));
-    if (R_FAILED(rc = pmdmntInitialize()))
-        fatalSimple(rc);
-
-    if (R_SUCCEEDED(setsysInitialize()))
-    {
-        rc = setsysGetFirmwareVersion(&fw);
-        if (R_SUCCEEDED(rc))
-            hosversionSet(MAKEHOSVERSION(fw.major, fw.minor, fw.micro));
-        setsysExit();
-    }
+    setsysInitialize();
+    setsysGetFirmwareVersion(&fw);
+    hosversionSet(MAKEHOSVERSION(fw.major, fw.minor, fw.micro));
+    setsysExit();
+    pmdmntInitialize();
 
     twiliInitialize();
     socketInitializeDefault();
-    fsdevMountSdmc();
 }
 
 void __appExit(void)
@@ -75,6 +71,7 @@ void __appExit(void)
 int main(int argc, char *argv[])
 {
     Splitter splitter = Splitter("/splitter.txt");
+    mp3MutInit();
 
     while (appletMainLoop())
     {
@@ -96,8 +93,13 @@ int main(int argc, char *argv[])
                 splitter.Reset();
         }
 
-        splitter.Update();
+        if (kDown & KEY_MINUS)
+        {
+            playMp3("/connect.mp3");
+        }
+
         svcSleepThread(1e+8L);
+        splitter.Update();
     }
 
     return 0;

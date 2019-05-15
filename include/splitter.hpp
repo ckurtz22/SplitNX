@@ -11,6 +11,7 @@
 #include <switch.h>
 
 
+
 bool doOperator(u64 param1, u64 param2, std::string op);
 u64 findHeapBase(Handle debugHandle);
 u64 readMemory(u64 address, size_t size);
@@ -35,11 +36,17 @@ public:
     void Skip();
 
 private:
+    bool connected;
     int sock;
     int port;
     std::string ip;
     std::vector<split> splits;
+    
+    u32 VibrationHandles[2];
+    HidVibrationValue v_start[2], v_stop[2];
 
-    ssize_t send_msg(std::string);
+    ssize_t send_msg(std::string, bool vibrate);
     ssize_t recv_msg(std::string&);
+    void buzz_good();
+    void buzz_bad();
 };
