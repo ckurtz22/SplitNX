@@ -45,7 +45,7 @@ void Splitter::Update()
     
     if (send_msg("getsplitindex\r\n", false) == -1) {
         connected = false;
-        playMp3("romfs:/disconnect.mp3");
+        playMp3("/switch/SplitNX/disconnect.mp3");
     }
     else
     {
@@ -76,9 +76,9 @@ void Splitter::Connect()
 
     connected = (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0);
     if (connected)
-        playMp3("romfs:/connect.mp3");
+        playMp3("/switch/SplitNX/connect.mp3");
     else
-        playMp3("romfs:/disconnect.mp3");
+        playMp3("/switch/SplitNX/disconnect.mp3");
 
 }
 

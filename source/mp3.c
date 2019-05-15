@@ -26,7 +26,7 @@ static Mutex mp3Mutex;
 void mp3MutInit() {
 	mutexInit(&mp3Mutex);
 	
-	buffSize = 80256;
+	buffSize = 0x1000;
     for(int curBuf = 0; curBuf < BUF_COUNT; curBuf++) {
         buffData[curBuf] = memalign(0x1000, buffSize);
     }

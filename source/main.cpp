@@ -10,7 +10,7 @@
 
 extern "C"
 {
-#define INNER_HEAP_SIZE 0x400000
+#define INNER_HEAP_SIZE 0x80000
     extern u32 __start__;
 
     size_t nx_inner_heap_size = INNER_HEAP_SIZE;
@@ -39,51 +39,49 @@ void __appInit(void)
 {
     Result rc;
     rc = smInitialize();
-    if (R_FAILED(rc)) fatalSimple(rc);
     rc = twiliInitialize();
-    if (R_FAILED(rc)) fatalSimple(rc);
 
     rc = hidInitialize();
-    if (R_FAILED(rc)) fatalSimple(rc);
     rc = hidPermitVibration(true);
-    if (R_FAILED(rc)) fatalSimple(rc);
     
     rc = fsInitialize();
-    if (R_FAILED(rc)) fatalSimple(rc);
     rc = fsdevMountSdmc();
-    if (R_FAILED(rc)) fatalSimple(rc);
-    rc = romfsInit();
-    if (R_FAILED(rc)) fatalSimple(rc);
+    // rc = romfsInit();
 
     SetSysFirmwareVersion fw;
     rc = setsysInitialize();
-    if (R_FAILED(rc)) fatalSimple(rc);
     rc = setsysGetFirmwareVersion(&fw);
-    if (R_FAILED(rc)) fatalSimple(rc);
     hosversionSet(MAKEHOSVERSION(fw.major, fw.minor, fw.micro));
     setsysExit();
     rc = pmdmntInitialize();
-    if (R_FAILED(rc)) fatalSimple(rc);
 
-    rc = socketInitializeDefault();
-    if (R_FAILED(rc)) fatalSimple(rc);
+    SocketInitConfig cfg = *socketGetDefaultInitConfig();
+    cfg.tcp_tx_buf_size = 0x80;
+    cfg.tcp_rx_buf_size = 0x100;
+    cfg.tcp_tx_buf_max_size = 0x200;
+    cfg.tcp_rx_buf_max_size = 0x200;
+
+    cfg.udp_tx_buf_size = 0x24;
+    cfg.udp_tx_buf_size = 0xA5;
+
+    rc = socketInitialize(&cfg);
 }
 
 void __appExit(void)
 {
     socketExit();
+    pmdmntExit();
     romfsExit();
     fsdevUnmountAll();
     fsExit();
     hidExit();
-    pmdmntExit();
     twiliExit();
     smExit();
 }
 
 int main(int argc, char *argv[])
 {
-    Splitter splitter = Splitter("romfs:/splitter.txt");
+    Splitter splitter = Splitter("/switch/SplitNX/splitter.txt");
 
     while (appletMainLoop())
     {

@@ -170,8 +170,11 @@ clean:
 dist: all
 	rm -rf dist/
 	mkdir -p dist/atmosphere/titles/$(APP_TITLEID)/flags
+	mkdir -p dist/switch/SplitNX
 	touch dist/atmosphere/titles/$(APP_TITLEID)/flags/boot2.flag
 	cp $(OUTPUT).nsp dist/atmosphere/titles/$(APP_TITLEID)/exefs.nsp
+	cp romfs/* dist/switch/SplitNX
+
 #---------------------------------------------------------------------------------
 
 
