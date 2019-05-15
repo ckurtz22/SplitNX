@@ -2,7 +2,6 @@
 
 #include <fstream>
 #include <iostream>
-#include <cstring>
 
 extern "C" {
     #include "mp3.h"
@@ -10,10 +9,11 @@ extern "C" {
 
 Splitter::Splitter(std::string filename)
 {
+    mp3MutInit();
     std::fstream file;
     connected = false;
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    file.open(filename);
+    file.open(filename, std::fstream::in);
 
     file >> ip;
     file >> port;
@@ -24,6 +24,7 @@ Splitter::Splitter(std::string filename)
         splits.push_back(s);
     }
     file.close();
+    std::cout << splits.size() << std::endl;
 
     if (R_FAILED(hidInitializeVibrationDevices(VibrationHandles, 2, CONTROLLER_HANDHELD, static_cast<HidControllerType>(TYPE_HANDHELD | TYPE_JOYCON_PAIR))))
         std::cout << "Vibration initialization failed" << std::endl;
@@ -44,7 +45,7 @@ void Splitter::Update()
     
     if (send_msg("getsplitindex\r\n", false) == -1) {
         connected = false;
-        playMp3("/disconnect.mp3");
+        playMp3("romfs:/disconnect.mp3");
     }
     else
     {
@@ -75,9 +76,9 @@ void Splitter::Connect()
 
     connected = (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0);
     if (connected)
-        playMp3("/connect.mp3");
+        playMp3("romfs:/connect.mp3");
     else
-        playMp3("/disconnect.mp3");
+        playMp3("romfs:/disconnect.mp3");
 
 }
 

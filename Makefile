@@ -36,7 +36,7 @@ SOURCES		:=	source
 DATA		:=	data
 INCLUDES	:=	include
 EXEFS_SRC	:=	exefs_src
-#ROMFS	:=	romfs
+ROMFS		:=	romfs
 APP_TITLEID :=  2200000000000100
 
 #---------------------------------------------------------------------------------
@@ -170,10 +170,8 @@ clean:
 dist: all
 	rm -rf dist/
 	mkdir -p dist/atmosphere/titles/$(APP_TITLEID)/flags
-	mkdir -p dist/split/
 	touch dist/atmosphere/titles/$(APP_TITLEID)/flags/boot2.flag
 	cp $(OUTPUT).nsp dist/atmosphere/titles/$(APP_TITLEID)/exefs.nsp
-	cp splitter.txt dist/split/
 #---------------------------------------------------------------------------------
 
 
