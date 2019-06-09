@@ -19,7 +19,7 @@ Splitter::Splitter(std::string filename)
     file >> port;
 
     split s;
-    while (file >> std::hex >> s.address >> s.op >> s.size >> s.value)
+    while (file >> std::hex >> s.address >> std::dec >> s.op >> s.size >> s.value)
     {
         splits.push_back(s);
     }
@@ -111,7 +111,7 @@ ssize_t Splitter::send_msg(std::string msg, bool vibrate)
 
 ssize_t Splitter::recv_msg(std::string &msg)
 {
-    char buff[32];
+    char buff[64];
     ssize_t ret = recv(sock, buff, 32, 0);
     msg = std::string(buff);
     return ret;
@@ -119,17 +119,17 @@ ssize_t Splitter::recv_msg(std::string &msg)
 
 bool doOperator(u64 param1, u64 param2, std::string op)
 {
-    if (op == "eq")
+    if (op == "==")
         return param1 == param2;
-    else if (op == "ne")
+    else if (op == "!=")
         return param1 != param2;
-    else if (op == "lt")
+    else if (op == "<")
         return param1 < param2;
-    else if (op == "gt")
+    else if (op == ">")
         return param1 > param2;
-    else if (op == "le")
+    else if (op == "<=")
         return param1 <= param2;
-    else if (op == "ge")
+    else if (op == ">=")
         return param1 >= param2;
     else
         return false;
@@ -155,10 +155,10 @@ u64 readMemory(u64 address, size_t size)
     u64 val, pid;
     Handle handle;
 
-    if (R_FAILED(pmdmntGetApplicationPid(&pid)))
+    if (R_FAILED(pmdmntGetApplicationPid(&pid))) // TODO: Can't just return 0
         return 0;
     svcDebugActiveProcess(&handle, pid);
-    svcReadDebugProcessMemory(&val, handle, findHeapBase(handle) + address, size);
+    svcReadDebugProcessMemory(&val, handle, findHeapBase(handle) + address, size / 8);
     svcCloseHandle(handle);
 
     return val;

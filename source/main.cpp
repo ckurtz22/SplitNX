@@ -46,7 +46,6 @@ void __appInit(void)
     
     rc = fsInitialize();
     rc = fsdevMountSdmc();
-    // rc = romfsInit();
 
     SetSysFirmwareVersion fw;
     rc = setsysInitialize();
@@ -55,14 +54,17 @@ void __appInit(void)
     setsysExit();
     rc = pmdmntInitialize();
 
+    // Who really needs those large buffers anyways
     SocketInitConfig cfg = *socketGetDefaultInitConfig();
-    cfg.tcp_tx_buf_size = 0x80;
-    cfg.tcp_rx_buf_size = 0x100;
-    cfg.tcp_tx_buf_max_size = 0x200;
-    cfg.tcp_rx_buf_max_size = 0x200;
+    cfg.tcp_tx_buf_size = 0x40;
+    cfg.tcp_rx_buf_size = 0x40;
+    cfg.tcp_tx_buf_max_size = 0x0;
+    cfg.tcp_rx_buf_max_size = 0x0;
 
-    cfg.udp_tx_buf_size = 0x24;
-    cfg.udp_tx_buf_size = 0xA5;
+    cfg.udp_tx_buf_size = 0x0; // Do we really need UDP in sockets?
+    cfg.udp_tx_buf_size = 0x0;
+
+    cfg.sb_efficiency = 1;
 
     rc = socketInitialize(&cfg);
 }
@@ -79,8 +81,7 @@ void __appExit(void)
     smExit();
 }
 
-int main(int argc, char *argv[])
-{
+int main_sysmodule() {
     Splitter splitter = Splitter("/switch/SplitNX/splitter.txt");
 
     while (appletMainLoop())
@@ -108,4 +109,15 @@ int main(int argc, char *argv[])
     }
 
     return 0;
+}
+
+int main_applet() {
+
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    return main_sysmodule();
+    return (R_SUCCEEDED(romfsInit()) ? main_applet() : main_sysmodule());
 }
