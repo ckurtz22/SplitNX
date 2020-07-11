@@ -28,12 +28,15 @@ class Splitter
 {
 public:
     Splitter(std::string filename);
+    void Reload(std::string filename);
     void Update();
     void Connect();
     void Split();
     void Reset();
     void Undo();
     void Skip();
+
+    void test_it();
 
 private:
     bool connected;

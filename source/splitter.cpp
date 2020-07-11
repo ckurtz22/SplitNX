@@ -10,29 +10,33 @@ extern "C" {
 Splitter::Splitter(std::string filename)
 {
     mp3MutInit();
-    std::fstream file;
     connected = false;
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    file.open(filename, std::fstream::in);
+    if (R_FAILED(hidInitializeVibrationDevices(VibrationHandles, 2, CONTROLLER_HANDHELD, static_cast<HidControllerType>(TYPE_HANDHELD | TYPE_JOYCON_PAIR))))
+        std::cout << "Vibration initialization failed" << std::endl;
 
+    Reload(filename);
+
+    v_start[0] = {0.3, 160.0, 0.3, 320.0};
+    v_start[1] = {0.3, 160.0, 0.3, 320.0};
+    v_stop[0] = {0.0, 160.0, 0.0, 320.0};
+    v_stop[1] = {0.0, 160.0, 0.0, 320.0};
+}
+
+void Splitter::Reload(std::string filename) {
+    std::fstream file;
+    file.open(filename, std::fstream::in);
     file >> ip;
     file >> port;
 
     split s;
+    splits.clear();
     while (file >> std::hex >> s.address >> std::dec >> s.op >> s.size >> s.value)
     {
         splits.push_back(s);
     }
     file.close();
     std::cout << splits.size() << std::endl;
-
-    if (R_FAILED(hidInitializeVibrationDevices(VibrationHandles, 2, CONTROLLER_HANDHELD, static_cast<HidControllerType>(TYPE_HANDHELD | TYPE_JOYCON_PAIR))))
-        std::cout << "Vibration initialization failed" << std::endl;
-
-    v_start[0] = {0.3, 160.0, 0.3, 320.0};
-    v_start[1] = {0.3, 160.0, 0.3, 320.0};
-    v_stop[0] = {0.0, 160.0, 0.0, 320.0};
-    v_stop[1] = {0.0, 160.0, 0.0, 320.0};
 }
 
 void Splitter::Update()
@@ -62,6 +66,13 @@ void Splitter::Update()
                 Split();
         }
     }
+}
+
+void Splitter::test_it() {
+    std::fstream file;
+    file.open("/splitnx.log", std::fstream::app);
+    file << "Memory: " << readMemory(splits[0].address, splits[0].size) << std::endl;
+    file.close();
 }
 
 void Splitter::Connect()
@@ -155,7 +166,7 @@ u64 readMemory(u64 address, size_t size)
     u64 val, pid;
     Handle handle;
 
-    if (R_FAILED(pmdmntGetApplicationPid(&pid))) // TODO: Can't just return 0
+    if (R_FAILED(pmdmntGetApplicationProcessId(&pid))) // TODO: Can't just return 0
         return 0;
     svcDebugActiveProcess(&handle, pid);
     svcReadDebugProcessMemory(&val, handle, findHeapBase(handle) + address, size / 8);

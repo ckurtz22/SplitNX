@@ -1,7 +1,8 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <malloc.h>
+#include <fstream>
 
 #include <switch.h>
 #include <twili.h>
@@ -22,6 +23,7 @@ extern "C"
 }
 
 u32 __nx_applet_type = AppletType_None;
+std::fstream logger;
 
 void __libnx_initheap(void)
 {
@@ -39,20 +41,42 @@ void __appInit(void)
 {
     Result rc;
     rc = smInitialize();
-    rc = twiliInitialize();
+    if (R_FAILED(rc))
+        fatalThrow(MAKERESULT(Module_Libnx, LibnxError_InitFail_SM));
+
+    // rc = twiliInitialize();
+    // if (R_FAILED(rc))
+        // fatalThrow(rc);
+    // twiliBindStdio();
 
     rc = hidInitialize();
+    if (R_FAILED(rc))
+        fatalThrow(rc);
+
     rc = hidPermitVibration(true);
+    if (R_FAILED(rc))
+        fatalThrow(rc);
     
     rc = fsInitialize();
-    rc = fsdevMountSdmc();
+    if (R_FAILED(rc))
+        fatalThrow(MAKERESULT(Module_Libnx, LibnxError_InitFail_FS));
 
-    SetSysFirmwareVersion fw;
+    rc = fsdevMountSdmc();
+    if (R_FAILED(rc))
+        fatalThrow(rc);
+
     rc = setsysInitialize();
-    rc = setsysGetFirmwareVersion(&fw);
-    hosversionSet(MAKEHOSVERSION(fw.major, fw.minor, fw.micro));
-    setsysExit();
+    if (R_SUCCEEDED(rc)) {
+        SetSysFirmwareVersion fw;
+        rc = setsysGetFirmwareVersion(&fw);
+        if (R_SUCCEEDED(rc))
+            hosversionSet(MAKEHOSVERSION(fw.major, fw.minor, fw.micro));
+        setsysExit();
+    }
+
     rc = pmdmntInitialize();
+    if (R_FAILED(rc))
+        fatalThrow(rc);
 
     // Who really needs those large buffers anyways
     SocketInitConfig cfg = *socketGetDefaultInitConfig();
@@ -81,7 +105,7 @@ void __appExit(void)
     smExit();
 }
 
-int main_sysmodule() {
+int main(int argc, char *argv[]) {
     Splitter splitter = Splitter("/switch/SplitNX/splitter.txt");
 
     while (appletMainLoop())
@@ -90,7 +114,7 @@ int main_sysmodule() {
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
         u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
 
-        if (!(~kHeld & (KEY_ZL | KEY_ZR | KEY_L | KEY_R)))
+        if (!(~kHeld & (KEY_ZR | KEY_R)) && !(kHeld & KEY_ZL) && !(kHeld & KEY_L))
         {
             if (kDown & KEY_PLUS)
                 splitter.Connect();
@@ -102,6 +126,10 @@ int main_sysmodule() {
                 splitter.Skip();
             else if (kDown & KEY_Y)
                 splitter.Reset();
+            else if (kDown & KEY_DLEFT)
+                splitter.test_it();
+            else if (kDown & KEY_MINUS)
+                splitter.Reload("/switch/SplitNX/splitter.txt");
         }
 
         svcSleepThread(1e+8L);
@@ -109,15 +137,4 @@ int main_sysmodule() {
     }
 
     return 0;
-}
-
-int main_applet() {
-
-    return 0;
-}
-
-int main(int argc, char *argv[])
-{
-    return main_sysmodule();
-    return (R_SUCCEEDED(romfsInit()) ? main_applet() : main_sysmodule());
 }
