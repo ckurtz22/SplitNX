@@ -15,7 +15,6 @@ include $(DEVKITPRO)/libnx/switch_rules
 # SOURCES is a list of directories containing source code
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
-# EXEFS_SRC is the optional input directory containing data copied into exefs, if anything this normally should only contain "main.npdm".
 # ROMFS is the directory containing data to be added to RomFS, relative to the Makefile (Optional)
 #
 # NO_ICON: if set to anything, do not use icon.
@@ -29,32 +28,45 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - <Project name>.jpg
 #     - icon.jpg
 #     - <libnx folder>/default_icon.jpg
+#
+# CONFIG_JSON is the filename of the NPDM config file (.json), relative to the project folder.
+#   If not set, it attempts to use one of the following (in this order):
+#     - <Project name>.json
+#     - config.json
+#   If a JSON file is provided or autodetected, an ExeFS PFS0 (.nsp) is built instead
+#   of a homebrew executable (.nro). This is intended to be used for sysmodules.
+#   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data
 INCLUDES	:=	include
-EXEFS_SRC	:=	exefs_src
 ROMFS		:=	romfs
-APP_TITLEID :=  2200000000000100
+APP_TITLE	:=	SplitNX
+APP_AUTHOR	:=	Gren
+APP_VERSION	:=	2.0.0
+
+BOREALIS_PATH		:=	libs/borealis
+BOREALIS_RESOURCES	:=	romfs:/borealis/
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE
+ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
 CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
 			$(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__
+CFLAGS	+=	-DBOREALIS_RESOURCES="\"$(BOREALIS_RESOURCES)\""
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
+CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=c++1z
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:=  -ltwili -lnx -lmpg123
+LIBS	:= -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -62,6 +74,7 @@ LIBS	:=  -ltwili -lnx -lmpg123
 #---------------------------------------------------------------------------------
 LIBDIRS	:= $(PORTLIBS) $(LIBNX)
 
+include $(TOPDIR)/$(BOREALIS_PATH)/library/borealis.mk
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
@@ -108,8 +121,6 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-export BUILD_EXEFS_SRC := $(TOPDIR)/$(EXEFS_SRC)
-
 ifeq ($(strip $(CONFIG_JSON)),)
 	jsons := $(wildcard *.json)
 	ifneq (,$(findstring $(TARGET).json,$(jsons)))
@@ -152,7 +163,7 @@ ifneq ($(ROMFS),)
 	export NROFLAGS += --romfsdir=$(CURDIR)/$(ROMFS)
 endif
 
-.PHONY: $(BUILD) clean all dist
+.PHONY: $(BUILD) clean all
 
 #---------------------------------------------------------------------------------
 all: $(BUILD)
@@ -164,20 +175,14 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).nro $(TARGET).nacp $(TARGET).elf $(TARGET).npdm dist/
+ifeq ($(strip $(APP_JSON)),)
+	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf
+else
+	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
+endif
+
 
 #---------------------------------------------------------------------------------
-dist: all
-	rm -rf dist/
-	mkdir -p dist/atmosphere/titles/$(APP_TITLEID)/flags
-	mkdir -p dist/switch/SplitNX
-	touch dist/atmosphere/titles/$(APP_TITLEID)/flags/boot2.flag
-	cp $(OUTPUT).nsp dist/atmosphere/titles/$(APP_TITLEID)/exefs.nsp
-	cp romfs/* dist/switch/SplitNX
-
-#---------------------------------------------------------------------------------
-
-
 else
 .PHONY:	all
 
@@ -186,15 +191,9 @@ DEPENDS	:=	$(OFILES:.o=.d)
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-all	:	$(OUTPUT).nsp $(OUTPUT).nro
-
 ifeq ($(strip $(APP_JSON)),)
-$(OUTPUT).nsp	:	$(OUTPUT).nso
-else
-$(OUTPUT).nsp	:	$(OUTPUT).nso $(OUTPUT).npdm
-endif
 
-$(OUTPUT).nso	:	$(OUTPUT).elf
+all	:	$(OUTPUT).nro
 
 ifeq ($(strip $(NO_NACP)),)
 $(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp
@@ -202,11 +201,19 @@ else
 $(OUTPUT).nro	:	$(OUTPUT).elf
 endif
 
+else
+
+all	:	$(OUTPUT).nsp
+
+$(OUTPUT).nsp	:	$(OUTPUT).nso $(OUTPUT).npdm
+
+$(OUTPUT).nso	:	$(OUTPUT).elf
+
+endif
+
 $(OUTPUT).elf	:	$(OFILES)
 
-$(OFILES_SRC)	:   $(HFILES_BIN)
-
-
+$(OFILES_SRC)	: $(HFILES_BIN)
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
@@ -221,4 +228,3 @@ $(OFILES_SRC)	:   $(HFILES_BIN)
 #---------------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------------
-

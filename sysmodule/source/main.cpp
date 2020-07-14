@@ -5,7 +5,7 @@
 #include <fstream>
 
 #include <switch.h>
-#include <twili.h>
+//#include <twili.h>
 
 #include "splitter.hpp"
 
@@ -101,7 +101,7 @@ void __appExit(void)
     fsdevUnmountAll();
     fsExit();
     hidExit();
-    twiliExit();
+    //twiliExit();
     smExit();
 }
 
