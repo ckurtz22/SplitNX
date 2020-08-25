@@ -8,6 +8,9 @@
 //#include <twili.h>
 
 #include "splitter.hpp"
+#include "dmntcht.h"
+
+std::fstream logger;
 
 extern "C"
 {
@@ -23,7 +26,6 @@ extern "C"
 }
 
 u32 __nx_applet_type = AppletType_None;
-std::fstream logger;
 
 void __libnx_initheap(void)
 {
@@ -74,9 +76,7 @@ void __appInit(void)
         setsysExit();
     }
 
-    rc = pmdmntInitialize();
-    if (R_FAILED(rc))
-        fatalThrow(rc);
+    dmntchtInitialize();
 
     // Who really needs those large buffers anyways
     SocketInitConfig cfg = *socketGetDefaultInitConfig();
@@ -91,12 +91,12 @@ void __appInit(void)
     cfg.sb_efficiency = 1;
 
     rc = socketInitialize(&cfg);
+    //logger.open("/splitnx.log");
 }
 
 void __appExit(void)
 {
     socketExit();
-    pmdmntExit();
     romfsExit();
     fsdevUnmountAll();
     fsExit();
