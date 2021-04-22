@@ -34,7 +34,7 @@ public:
     void Skip();
     void SetLoading(bool);
 
-    void test_it();
+    void debug_first_mem();
 
 private:
     bool connected;

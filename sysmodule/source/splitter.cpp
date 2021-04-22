@@ -73,7 +73,7 @@ void Splitter::Update()
     file.close();
 }
 
-void Splitter::test_it()
+void Splitter::debug_first_mem()
 {
     std::fstream file;
     file.open("/splitnx.log", std::fstream::app);

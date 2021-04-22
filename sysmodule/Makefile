@@ -95,26 +95,6 @@ CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
-style:
-	@for src in $(CFILES) ; do \
-		echo "Formatting $$src..." ; \
-		clang-format-11 -style=webkit -i "source/$$src" ; \
-	done
-	@for src in $(CPPFILES) ; do \
-		echo "Formatting $$src..." ; \
-		clang-format-11 -style=webkit -i "source/$$src" ; \
-	done
-	@for src in $(HFILES) ; do \
-		echo "Formatting $$src..." ; \
-		clang-format-11 -style=webkit -i "include/$$src" ; \
-	done
-	@for src in $(HPPFILES) ; do \
-		echo "Formatting $$src..." ; \
-		clang-format-11 -style=webkit -i "include/$$src" ; \
-	done
-	@echo "Done"
-.PHONY: style
-
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
 #---------------------------------------------------------------------------------
@@ -182,28 +162,53 @@ ifneq ($(ROMFS),)
 	export NROFLAGS += --romfsdir=$(CURDIR)/$(ROMFS)
 endif
 
-.PHONY: $(BUILD) clean all
+.PHONY: $(BUILD) clean all style
 
 #---------------------------------------------------------------------------------
 all: $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
+	@[ -d $(CURDIR)/$(OUTDIR) ] || mkdir -p $(CURDIR)/$(OUTDIR)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
 ifeq ($(strip $(APP_JSON)),)
-	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf
+	@rm -fr $(BUILD) $(OUTDIR) $(CURDIR)/dist/ $(TARGET).nro $(TARGET).nacp $(TARGET).elf
 else
-	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
+	@rm -fr $(BUILD) $(OUTDIR) $(CURDIR)/dist/ $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
 endif
 
+#---------------------------------------------------------------------------------
+style:
+	@for src in $(CFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "source/$$src" ; \
+	done
+	@for src in $(CPPFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "source/$$src" ; \
+	done
+	@for src in $(HFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "include/$$src" ; \
+	done
+	@for src in $(HPPFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "include/$$src" ; \
+	done
+	@echo "Done"
+
+#---------------------------------------------------------------------------------
+dist: all $(OUTPUT).nsp
+	@[ -d $(CURDIR)/dist/ ] || mkdir -p $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)
+	@cp -f $(OUTPUT).nsp $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/exefs.nsp
 
 #---------------------------------------------------------------------------------
 else
-.PHONY:	all
+.PHONY:	all style
 
 DEPENDS	:=	$(OFILES:.o=.d)
 

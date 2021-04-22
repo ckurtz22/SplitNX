@@ -15,7 +15,7 @@
  */
 #define NX_SERVICE_ASSUME_NON_DOMAIN
 #include "dmntcht.h"
-#include "../service_guard.h"
+#include "service_guard.h"
 
 static Service g_dmntchtSrv;
 

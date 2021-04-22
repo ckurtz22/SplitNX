@@ -12,10 +12,13 @@ key-combos currently can not be changed.
 
 To trigger hold all 4 "Shoulder Buttons" (ZL/L/R/ZR), and then press one of:
 
+  - `+`: Attempt to connect to livesplit server
+  - `-`: Reload configuration file.
   - `A`: Split/Start
   - `B`: Undo
   - `X`: Skip
   - `Y`: Reset
+  - Left on the DPAD: write first memory address value in autosplitter to log file.
 
 ### Splitting Based on Memory Values ###
 
@@ -44,6 +47,7 @@ keypresses, and communicating with LiveSplit.
 
 Inside the `sysmodule` directory:
 
-1. Run `make dist`.
-2. Copy the files within the `dist` folder to your SD Card.
-3. Boot up your switch with CFW (Atmosphere/Kosmos).
+1. Ensure you have `switch-mpg123` installed: `dkp-pacman -S switch-mpg123`
+2. Run `make dist`.
+3. Copy the files within the `dist` folder to your SD Card.
+4. Boot up your switch with CFW (Atmosphere/Kosmos).

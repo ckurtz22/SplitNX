@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include <switch.h>
-//#include <twili.h>
 
 #include "dmntcht.h"
 #include "splitter.hpp"
@@ -44,11 +43,6 @@ void __appInit(void)
     rc = smInitialize();
     if (R_FAILED(rc))
         fatalThrow(MAKERESULT(Module_Libnx, LibnxError_InitFail_SM));
-
-    // rc = twiliInitialize();
-    // if (R_FAILED(rc))
-    // fatalThrow(rc);
-    // twiliBindStdio();
 
     rc = hidInitialize();
     if (R_FAILED(rc))
@@ -125,7 +119,7 @@ int main(int argc, char* argv[])
             else if (kDown & KEY_Y)
                 splitter.Reset();
             else if (kDown & KEY_DLEFT)
-                splitter.test_it();
+                splitter.debug_first_mem();
             else if (kDown & KEY_MINUS)
                 splitter.Reload("/switch/SplitNX/splitter.txt");
         }
