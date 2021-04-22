@@ -1,21 +1,19 @@
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include <switch.h>
 
-
 bool doOperator(u64 param1, u64 param2, std::string op);
 u64 readMemory(u64 address, size_t size, std::string type);
 
-struct split
-{
+struct split {
     u64 address;
     u64 value;
     size_t size;
@@ -24,8 +22,7 @@ struct split
     bool valid = false;
 };
 
-class Splitter
-{
+class Splitter {
 public:
     Splitter(std::string filename);
     void Reload(std::string filename);

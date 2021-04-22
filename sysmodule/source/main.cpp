@@ -1,42 +1,41 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <malloc.h>
 #include <fstream>
+#include <malloc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <switch.h>
 //#include <twili.h>
 
-#include "splitter.hpp"
 #include "dmntcht.h"
+#include "splitter.hpp"
 
 std::fstream logger;
 
-extern "C"
-{
+extern "C" {
 #define INNER_HEAP_SIZE 0x80000
-    extern u32 __start__;
+extern u32 __start__;
 
-    size_t nx_inner_heap_size = INNER_HEAP_SIZE;
-    char nx_inner_heap[INNER_HEAP_SIZE];
+size_t nx_inner_heap_size = INNER_HEAP_SIZE;
+char nx_inner_heap[INNER_HEAP_SIZE];
 
-    void __libnx_initheap(void);
-    void __appInit(void);
-    void __appExit(void);
+void __libnx_initheap(void);
+void __appInit(void);
+void __appExit(void);
 }
 
 u32 __nx_applet_type = AppletType_None;
 
 void __libnx_initheap(void)
 {
-    void *addr = nx_inner_heap;
+    void* addr = nx_inner_heap;
     size_t size = nx_inner_heap_size;
 
-    extern char *fake_heap_start;
-    extern char *fake_heap_end;
+    extern char* fake_heap_start;
+    extern char* fake_heap_end;
 
-    fake_heap_start = (char *)addr;
-    fake_heap_end = (char *)addr + size;
+    fake_heap_start = (char*)addr;
+    fake_heap_end = (char*)addr + size;
 }
 
 void __appInit(void)
@@ -48,7 +47,7 @@ void __appInit(void)
 
     // rc = twiliInitialize();
     // if (R_FAILED(rc))
-        // fatalThrow(rc);
+    // fatalThrow(rc);
     // twiliBindStdio();
 
     rc = hidInitialize();
@@ -58,7 +57,7 @@ void __appInit(void)
     rc = hidPermitVibration(true);
     if (R_FAILED(rc))
         fatalThrow(rc);
-    
+
     rc = fsInitialize();
     if (R_FAILED(rc))
         fatalThrow(MAKERESULT(Module_Libnx, LibnxError_InitFail_FS));
@@ -105,17 +104,16 @@ void __appExit(void)
     smExit();
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     Splitter splitter = Splitter("/switch/SplitNX/splitter.txt");
 
-    while (appletMainLoop())
-    {
+    while (appletMainLoop()) {
         hidScanInput();
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
         u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
 
-        if (!(~kHeld & (KEY_ZR | KEY_R)) && !(kHeld & KEY_ZL) && !(kHeld & KEY_L))
-        {
+        if (!(~kHeld & (KEY_ZR | KEY_R)) && !(kHeld & KEY_ZL) && !(kHeld & KEY_L)) {
             if (kDown & KEY_PLUS)
                 splitter.Connect();
             else if (kDown & KEY_A)

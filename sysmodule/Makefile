@@ -88,10 +88,32 @@ export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
+HFILES		:=	$(foreach dir,$(INCLUDES),$(notdir $(wildcard $(dir)/*.h)))
+HPPFILES	:=	$(foreach dir,$(INCLUDES),$(notdir $(wildcard $(dir)/*.hpp)))
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+
+style:
+	@for src in $(CFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "source/$$src" ; \
+	done
+	@for src in $(CPPFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "source/$$src" ; \
+	done
+	@for src in $(HFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "include/$$src" ; \
+	done
+	@for src in $(HPPFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "include/$$src" ; \
+	done
+	@echo "Done"
+.PHONY: style
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C

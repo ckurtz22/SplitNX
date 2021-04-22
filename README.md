@@ -1,30 +1,49 @@
-# SplitNX
+# SplitNX #
+
 LiveSplit Server plugin for autosplitting on the Nintendo Switch!
 
-Simply `make dist` and add the files within the dist folder to your SD card. Must run with CFW (Use Atmosphere or Kosmos or it will probably not work).
-Includes both basic autosplitting from memory and manual splitting with controller.
-All controls require you to hold all 4 shoulder buttons then press:
-A - Split/Start
-B - Undo Split
-X - Skip Split
-Y - Reset
+## Usage ##
 
-The autosplitting is read in from `/split/splitter.txt` on your SD card which has the following format:
+### Splitting With a Controller ###
 
-First line: IP of computer
+This is the easiest way to use splitting for newcomers, and is always on.
+Certain button combinations will trigger splits for livesplit. These
+key-combos currently can not be changed.
 
-Second line: Port of LiveSplit Server
+To trigger hold all 4 "Shoulder Buttons" (ZL/L/R/ZR), and then press one of:
 
-Every line after that will correspond to a memory autosplit corresponding with the index of the split in LiveSplit (so the 3rd line will describe autosplitting for the first split, and so on):
+  - `A`: Split/Start
+  - `B`: Undo
+  - `X`: Skip
+  - `Y`: Reset
 
+### Splitting Based on Memory Values ###
+
+Similar to how autosplit scripts work it is possible to automatically split
+based on the condition of a piece of memory. The format is described below,
+but we don't describe how to identify these values as that's highly dependent
+on each game.
+
+TODO(xxx): document file which just contains memory autosplit.
+
+<!--
 [Offset Address from Heap start] [operator] [size] [value]
 
 Example:
 `0x61BC93B6 >= u32 1001` will check whether or not the unsigned 32 bit integer at HEAP + 0x61BC93B6 is greater or equal to the value of 1001. If so it will split for that split index.
 
+Hook in auto-splitters?
+-->
 
-This is super rough, just wanted to get something working for now, and I may or may not improve it later. If anyone wants to improve it then by all means go for it. Would be great to get it to hook into the already implemented AutoSplitters for LiveSplit but I have no clue how to do that.
+## Building ##
 
-Any questions feel free to ask.
+### SysModule ###
 
-Example of it running: https://youtu.be/K0eXAhT2AB4
+The sysmodule is the actual thing always running on your switch, listening for
+keypresses, and communicating with LiveSplit.
+
+Inside the `sysmodule` directory:
+
+1. Run `make dist`.
+2. Copy the files within the `dist` folder to your SD Card.
+3. Boot up your switch with CFW (Atmosphere/Kosmos).
