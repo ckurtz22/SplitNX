@@ -1,42 +1,40 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <malloc.h>
-#include <fstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 
 #include <switch.h>
-//#include <twili.h>
 
-#include "splitter.hpp"
 #include "dmntcht.h"
+#include "splitter.hpp"
+#include "ulog/ulog.h"
 
-std::fstream logger;
-
-extern "C"
-{
+extern "C" {
 #define INNER_HEAP_SIZE 0x80000
-    extern u32 __start__;
+extern u32 __start__;
 
-    size_t nx_inner_heap_size = INNER_HEAP_SIZE;
-    char nx_inner_heap[INNER_HEAP_SIZE];
+size_t nx_inner_heap_size = INNER_HEAP_SIZE;
+char nx_inner_heap[INNER_HEAP_SIZE];
 
-    void __libnx_initheap(void);
-    void __appInit(void);
-    void __appExit(void);
+void __libnx_initheap(void);
+void __appInit(void);
+void __appExit(void);
 }
 
 u32 __nx_applet_type = AppletType_None;
 
 void __libnx_initheap(void)
 {
-    void *addr = nx_inner_heap;
+    void* addr = nx_inner_heap;
     size_t size = nx_inner_heap_size;
 
-    extern char *fake_heap_start;
-    extern char *fake_heap_end;
+    extern char* fake_heap_start;
+    extern char* fake_heap_end;
 
-    fake_heap_start = (char *)addr;
-    fake_heap_end = (char *)addr + size;
+    fake_heap_start = (char*)addr;
+    fake_heap_end = (char*)addr + size;
 }
 
 void __appInit(void)
@@ -46,11 +44,6 @@ void __appInit(void)
     if (R_FAILED(rc))
         fatalThrow(MAKERESULT(Module_Libnx, LibnxError_InitFail_SM));
 
-    // rc = twiliInitialize();
-    // if (R_FAILED(rc))
-        // fatalThrow(rc);
-    // twiliBindStdio();
-
     rc = hidInitialize();
     if (R_FAILED(rc))
         fatalThrow(rc);
@@ -58,7 +51,7 @@ void __appInit(void)
     rc = hidPermitVibration(true);
     if (R_FAILED(rc))
         fatalThrow(rc);
-    
+
     rc = fsInitialize();
     if (R_FAILED(rc))
         fatalThrow(MAKERESULT(Module_Libnx, LibnxError_InitFail_FS));
@@ -91,7 +84,6 @@ void __appInit(void)
     cfg.sb_efficiency = 1;
 
     rc = socketInitialize(&cfg);
-    //logger.open("/splitnx.log");
 }
 
 void __appExit(void)
@@ -101,21 +93,46 @@ void __appExit(void)
     fsdevUnmountAll();
     fsExit();
     hidExit();
-    //twiliExit();
     smExit();
 }
 
-int main(int argc, char *argv[]) {
+void ensureAppDir()
+{
+    struct stat st = { 0 };
+    if (stat("/switch/SplitNX", &st) == -1) {
+        mkdir("/switch/SplitNX", 0700);
+    }
+}
+
+static uint64_t get_time_us()
+{
+    struct timespec tp = { 0, 0 };
+    clock_gettime(CLOCK_REALTIME, &tp);
+    return static_cast<uint64_t>(tp.tv_sec) * 1000 * 1000 + tp.tv_nsec / 1000;
+}
+
+static int put_str(void* handle, const char* str)
+{
+    auto* file_handle = reinterpret_cast<FILE*>(handle);
+    return fprintf(file_handle, "%s", str);
+}
+
+int main(int argc, char* argv[])
+{
+    ensureAppDir();
+    logger_set_time_callback(get_time_us);
+    auto* fptr = fopen("/switch/SplitNX/debug.log", "w");
+    logger_init(fptr, put_str);
     Splitter splitter = Splitter("/switch/SplitNX/splitter.txt");
 
-    while (appletMainLoop())
-    {
+    LOGGER_DEBUG("Starting SplitNx.");
+
+    while (appletMainLoop()) {
         hidScanInput();
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
         u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
 
-        if (!(~kHeld & (KEY_ZR | KEY_R)) && !(kHeld & KEY_ZL) && !(kHeld & KEY_L))
-        {
+        if (!(~kHeld & (KEY_ZR | KEY_R)) && !(kHeld & KEY_ZL) && !(kHeld & KEY_L)) {
             if (kDown & KEY_PLUS)
                 splitter.Connect();
             else if (kDown & KEY_A)
@@ -127,7 +144,7 @@ int main(int argc, char *argv[]) {
             else if (kDown & KEY_Y)
                 splitter.Reset();
             else if (kDown & KEY_DLEFT)
-                splitter.test_it();
+                splitter.debug_first_mem();
             else if (kDown & KEY_MINUS)
                 splitter.Reload("/switch/SplitNX/splitter.txt");
         }
@@ -136,5 +153,8 @@ int main(int argc, char *argv[]) {
         splitter.Update();
     }
 
+    LOGGER_DEBUG("Closing SplitNx.");
+
+    fclose(fptr);
     return 0;
 }

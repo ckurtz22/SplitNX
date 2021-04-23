@@ -40,9 +40,9 @@ include $(TOPDIR)/../switch_rules
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 OUTDIR		:=	out
-SOURCES		:=	source
+SOURCES		:=	source vendor/ulog/src
 DATA		:=	data
-INCLUDES	:=	include
+INCLUDES	:=	include vendor/ulog/include
 ROMFS		:=	romfs
 APP_TITLEID	:=	2200000000000100
 APP_TITLE	:=	SplitNX
@@ -88,6 +88,8 @@ export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
+HFILES		:=	$(foreach dir,$(INCLUDES),$(notdir $(wildcard $(dir)/*.h)))
+HPPFILES	:=	$(foreach dir,$(INCLUDES),$(notdir $(wildcard $(dir)/*.hpp)))
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
@@ -107,12 +109,12 @@ else
 endif
 #---------------------------------------------------------------------------------
 
-export OFILES_BIN	:=	$(addsuffix .o,$(BINFILES))
-export OFILES_SRC	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
-export OFILES 	:=	$(OFILES_BIN) $(OFILES_SRC)
-export HFILES_BIN	:=	$(addsuffix .h,$(subst .,_,$(BINFILES)))
+export OFILES_BIN :=	$(addsuffix .o,$(BINFILES))
+export OFILES_SRC :=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+export OFILES     :=	$(OFILES_BIN) $(OFILES_SRC)
+export HFILES_BIN :=	$(addsuffix .h,$(subst .,_,$(BINFILES)))
 
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+export INCLUDE :=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
 			-I$(CURDIR)/$(BUILD)
 
@@ -160,28 +162,55 @@ ifneq ($(ROMFS),)
 	export NROFLAGS += --romfsdir=$(CURDIR)/$(ROMFS)
 endif
 
-.PHONY: $(BUILD) clean all
+.PHONY: $(BUILD) clean all style
 
 #---------------------------------------------------------------------------------
 all: $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
+	@[ -d $(CURDIR)/$(OUTDIR) ] || mkdir -p $(CURDIR)/$(OUTDIR)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
 ifeq ($(strip $(APP_JSON)),)
-	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf
+	@rm -fr $(BUILD) $(OUTDIR) $(CURDIR)/dist/ $(TARGET).nro $(TARGET).nacp $(TARGET).elf
 else
-	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
+	@rm -fr $(BUILD) $(OUTDIR) $(CURDIR)/dist/ $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
 endif
 
+#---------------------------------------------------------------------------------
+style:
+	@for src in $(CFILES) ; do \
+		echo "Formatting $$src..." ; \
+		if [ -f "source/$$src" ]; then clang-format-11 -style=webkit -i "source/$$src" ; fi ; \
+	done
+	@for src in $(CPPFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "source/$$src" ; \
+	done
+	@for src in $(HFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "include/$$src" ; \
+	done
+	@for src in $(HPPFILES) ; do \
+		echo "Formatting $$src..." ; \
+		clang-format-11 -style=webkit -i "include/$$src" ; \
+	done
+	@echo "Done"
+
+#---------------------------------------------------------------------------------
+dist: all $(OUTPUT).nsp
+	@[ -d $(CURDIR)/dist/ ] || mkdir -p $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/flags
+	@cp -f $(OUTPUT).nsp $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/exefs.nsp
+	@touch $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/flags/boot2.flag
+	@echo '{"name": "SplitNX-Sysmodule", "tid": "$(APP_TITLEID)", "requires_reboot": true}' > $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/toolbox.json
 
 #---------------------------------------------------------------------------------
 else
-.PHONY:	all
+.PHONY:	all style
 
 DEPENDS	:=	$(OFILES:.o=.d)
 
