@@ -1,3 +1,6 @@
 [submodule "application/libs/borealis"]
 	path = application/libs/borealis
 	url = git@github.com:natinusala/borealis.git
+[submodule "sysmodule/vendor/ulog"]
+	path = sysmodule/vendor/ulog
+	url = git@github.com:ShawnFeng0/ulog.git

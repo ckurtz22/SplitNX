@@ -40,9 +40,9 @@ include $(TOPDIR)/../switch_rules
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 OUTDIR		:=	out
-SOURCES		:=	source
+SOURCES		:=	source vendor/ulog/src
 DATA		:=	data
-INCLUDES	:=	include
+INCLUDES	:=	include vendor/ulog/include
 ROMFS		:=	romfs
 APP_TITLEID	:=	2200000000000100
 APP_TITLE	:=	SplitNX
@@ -185,7 +185,7 @@ endif
 style:
 	@for src in $(CFILES) ; do \
 		echo "Formatting $$src..." ; \
-		clang-format-11 -style=webkit -i "source/$$src" ; \
+		if [ -f "source/$$src" ]; then clang-format-11 -style=webkit -i "source/$$src" ; fi ; \
 	done
 	@for src in $(CPPFILES) ; do \
 		echo "Formatting $$src..." ; \
@@ -203,8 +203,10 @@ style:
 
 #---------------------------------------------------------------------------------
 dist: all $(OUTPUT).nsp
-	@[ -d $(CURDIR)/dist/ ] || mkdir -p $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)
+	@[ -d $(CURDIR)/dist/ ] || mkdir -p $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/flags
 	@cp -f $(OUTPUT).nsp $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/exefs.nsp
+	@touch $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/flags/boot2.flag
+	@echo '{"name": "SplitNX-Sysmodule", "tid": "$(APP_TITLEID)", "requires_reboot": true}' > $(CURDIR)/dist/atmosphere/contents/$(APP_TITLEID)/toolbox.json
 
 #---------------------------------------------------------------------------------
 else

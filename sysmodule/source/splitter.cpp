@@ -1,5 +1,6 @@
 #include "splitter.hpp"
 #include "dmntcht.h"
+#include "ulog/ulog.h"
 
 #include <fstream>
 #include <iostream>
@@ -7,8 +8,6 @@
 extern "C" {
 #include "mp3.h"
 }
-
-extern std::fstream logger;
 
 Splitter::Splitter(std::string filename)
 {
@@ -36,7 +35,7 @@ void Splitter::Reload(std::string filename)
             splits.push_back(s);
     }
     file.close();
-    std::cout << splits.size() << std::endl;
+    LOGGER_DEBUG("Found %ld splits", splits.size());
 }
 
 void Splitter::Update()
@@ -44,13 +43,11 @@ void Splitter::Update()
     if (!connected)
         return;
 
-    std::fstream file;
-    file.open("/splitnx.log", std::fstream::app);
     if (send_msg("getsplitindex\r\n") == -1) {
         connected = false;
         playMp3("/switch/SplitNX/disconnect.mp3");
     } else {
-        std::cout << "updated" << std::endl;
+        LOGGER_DEBUG("updated configuration");
 
         std::string ind;
         if (recv_msg(ind) > 0) {
@@ -61,7 +58,7 @@ void Splitter::Update()
             split s = splits[i];
 
             auto val = readMemory(s.address, s.size, s.type);
-            file << "Memory addr " << std::hex << s.address << ": " << val << std::endl;
+            LOGGER_DEBUG("Memory addr %ld: %lu", s.address, val);
 
             if (doOperator(val, s.value, s.op))
                 Split();
@@ -70,15 +67,11 @@ void Splitter::Update()
             SetLoading(doOperator(readMemory(loading.address, loading.size, loading.type), loading.value, loading.op));
         }
     }
-    file.close();
 }
 
 void Splitter::debug_first_mem()
 {
-    std::fstream file;
-    file.open("/splitnx.log", std::fstream::app);
-    file << "Memory: " << readMemory(splits[0].address, splits[0].size, splits[0].type) << std::endl;
-    file.close();
+    LOGGER_INFO("Memory: %lu", readMemory(splits[0].address, splits[0].size, splits[0].type));
 }
 
 void Splitter::Connect()

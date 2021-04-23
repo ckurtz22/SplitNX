@@ -1,15 +1,15 @@
-#include <fstream>
 #include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 
 #include <switch.h>
 
 #include "dmntcht.h"
 #include "splitter.hpp"
-
-std::fstream logger;
+#include "ulog/ulog.h"
 
 extern "C" {
 #define INNER_HEAP_SIZE 0x80000
@@ -84,7 +84,6 @@ void __appInit(void)
     cfg.sb_efficiency = 1;
 
     rc = socketInitialize(&cfg);
-    //logger.open("/splitnx.log");
 }
 
 void __appExit(void)
@@ -94,13 +93,39 @@ void __appExit(void)
     fsdevUnmountAll();
     fsExit();
     hidExit();
-    //twiliExit();
     smExit();
+}
+
+void ensureAppDir()
+{
+    struct stat st = { 0 };
+    if (stat("/switch/SplitNX", &st) == -1) {
+        mkdir("/switch/SplitNX", 0700);
+    }
+}
+
+static uint64_t get_time_us()
+{
+    struct timespec tp = { 0, 0 };
+    clock_gettime(CLOCK_REALTIME, &tp);
+    return static_cast<uint64_t>(tp.tv_sec) * 1000 * 1000 + tp.tv_nsec / 1000;
+}
+
+static int put_str(void* handle, const char* str)
+{
+    auto* file_handle = reinterpret_cast<FILE*>(handle);
+    return fprintf(file_handle, "%s", str);
 }
 
 int main(int argc, char* argv[])
 {
+    ensureAppDir();
+    logger_set_time_callback(get_time_us);
+    auto* fptr = fopen("/switch/SplitNX/debug.log", "w");
+    logger_init(fptr, put_str);
     Splitter splitter = Splitter("/switch/SplitNX/splitter.txt");
+
+    LOGGER_DEBUG("Starting SplitNx.");
 
     while (appletMainLoop()) {
         hidScanInput();
@@ -128,5 +153,8 @@ int main(int argc, char* argv[])
         splitter.Update();
     }
 
+    LOGGER_DEBUG("Closing SplitNx.");
+
+    fclose(fptr);
     return 0;
 }
