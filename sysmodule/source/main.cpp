@@ -91,7 +91,6 @@ void __appInit(void)
     cfg.sb_efficiency = 1;
 
     rc = socketInitialize(&cfg);
-    //logger.open("/splitnx.log");
 }
 
 void __appExit(void)
@@ -108,27 +107,31 @@ void __appExit(void)
 int main(int argc, char *argv[]) {
     Splitter splitter = Splitter("/switch/SplitNX/splitter.txt");
 
-    while (appletMainLoop())
+    PadState pad;
+    padInitializeDefault(&pad);
+    
+    while (true)
     {
-        hidScanInput();
-        u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
-        u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
+        padUpdate(&pad);
 
-        if (!(~kHeld & (KEY_ZR | KEY_R)) && !(kHeld & KEY_ZL) && !(kHeld & KEY_L))
+        u64 kDown = padGetButtonsDown(&pad);
+        u64 kHeld = padGetButtons(&pad);
+
+        if (!(~kHeld & (HidNpadButton_ZR | HidNpadButton_R)) && !(kHeld & HidNpadButton_ZL) && !(kHeld & HidNpadButton_L))
         {
-            if (kDown & KEY_PLUS)
+            if (kDown & HidNpadButton_Plus)
                 splitter.Connect();
-            else if (kDown & KEY_A)
+            else if (kDown & HidNpadButton_A)
                 splitter.Split();
-            else if (kDown & KEY_B)
+            else if (kDown & HidNpadButton_B)
                 splitter.Undo();
-            else if (kDown & KEY_X)
+            else if (kDown & HidNpadButton_X)
                 splitter.Skip();
-            else if (kDown & KEY_Y)
+            else if (kDown & HidNpadButton_Y)
                 splitter.Reset();
-            else if (kDown & KEY_DLEFT)
+            else if (kDown & HidNpadButton_Left)
                 splitter.test_it();
-            else if (kDown & KEY_MINUS)
+            else if (kDown & HidNpadButton_Minus)
                 splitter.Reload("/switch/SplitNX/splitter.txt");
         }
 
