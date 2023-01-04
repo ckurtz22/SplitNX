@@ -2,8 +2,8 @@
 	path = application/libs/borealis
 	url = git@github.com:natinusala/borealis.git
 [submodule "overlay/lib/Atmosphere-libs"]
-	path = overlay/lib/Atmosphere-libs
+	path = lib/Atmosphere-libs
 	url = https://github.com/Atmosphere-NX/Atmosphere-libs
 [submodule "overlay/lib/libtesla"]
-	path = overlay/lib/libtesla
+	path = lib/libtesla
 	url = https://github.com/WerWolv/libtesla

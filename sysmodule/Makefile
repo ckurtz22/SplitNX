@@ -39,15 +39,17 @@ include $(TOPDIR)/../switch_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-OUTDIR		:=	out
-SOURCES		:=	source
+OUTDIR		:=	.
+SOURCES		:=	source ../lib/Atmosphere-libs/libstratosphere/source/dmnt
 DATA		:=	data
-INCLUDES	:=	include
+INCLUDES	:=	include ../lib/Atmosphere-libs/libstratosphere/source/dmnt
 ROMFS		:=	romfs
 APP_TITLEID	:=	2200000000000100
 APP_TITLE	:=	SplitNX
 APP_AUTHOR	:=	Gren
 APP_VERSION	:=	2.0.0
+IP_ADDRESS  :=  192.168.1.148
+IP_PORT  	:=  5000
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -225,3 +227,6 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 #---------------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------------
+
+send :	all
+	@lftp -p $(IP_PORT) -e "put sysmodule.nsp -o /atmosphere/contents/$(APP_TITLEID)/exefs.nsp; exit" $(IP_ADDRESS)

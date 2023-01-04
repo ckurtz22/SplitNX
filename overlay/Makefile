@@ -41,8 +41,8 @@ APP_TITLE	:=	SplitNX
 APP_VERSION	:=	2.0.0
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source lib/Atmosphere-libs/libstratosphere/source/dmnt
-INCLUDES	:=	include lib/libtesla/include lib/Atmosphere-libs/libstratosphere/source/dmnt
+SOURCES		:=	source ../lib/Atmosphere-libs/libstratosphere/source/dmnt
+INCLUDES	:=	include ../lib/libtesla/include ../lib/Atmosphere-libs/libstratosphere/source/dmnt
 NO_ICON		:=  1
 
 IP_ADDRESS	:= 192.168.1.148
