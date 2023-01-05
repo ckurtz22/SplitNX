@@ -1,6 +1,3 @@
-[submodule "application/libs/borealis"]
-	path = application/libs/borealis
-	url = git@github.com:natinusala/borealis.git
 [submodule "overlay/lib/Atmosphere-libs"]
 	path = lib/Atmosphere-libs
 	url = https://github.com/Atmosphere-NX/Atmosphere-libs
