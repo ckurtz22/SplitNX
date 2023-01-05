@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <mutex>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -21,22 +22,19 @@ struct split
     bool valid = false;
 };
 
-bool doOperator(split s);
-u64 readMemory(u64 address, size_t size, std::string type);
-
-
 class Splitter
 {
 public:
     Splitter(std::string filename);
     void Reload(std::string filename);
     void Update();
-    bool Connect();
+    void Connect();
     void Split();
     void Reset();
     void Undo();
     void Skip();
     void SetLoading(bool);
+    size_t GetSplitIndex();
     std::string GetSplitName();
     std::string GetSplitTime();
 
@@ -45,7 +43,6 @@ public:
     int GetNumSplits() const { return splits.size(); };
     bool IsConnected() const { return connected; };
 
-    void test_it();
 
 private:
     bool connected;
@@ -55,6 +52,10 @@ private:
     std::vector<split> splits;
     split loading;
 
-    ssize_t send_msg(std::string);
-    ssize_t recv_msg(std::string&);
+    std::mutex m;
+
+    ssize_t send_cmd(std::string cmd);
+    ssize_t recv_msg(std::string cmd, std::string& resp);
+    bool do_operator(split s);
+    u64 read_memory(split s);
 };

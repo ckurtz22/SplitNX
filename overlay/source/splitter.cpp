@@ -2,11 +2,6 @@
 #include "dmntcht.h"
 
 #include <fstream>
-#include <iostream>
-#include <sys/time.h>
-
-
-extern std::fstream logger;
 
 Splitter::Splitter(std::string filename)
 {
@@ -34,39 +29,28 @@ void Splitter::Reload(std::string filename) {
             splits.push_back(s);
     }
     file.close();
-    std::cout << splits.size() << std::endl;
 }
 
 void Splitter::Update()
 {
-    if (!connected || send_msg("getsplitindex\r\n") == -1) 
-    {
-        connected = false;
-        return;
-    }
+    if (!connected) return;
 
     if (loading.valid) 
     {
-        SetLoading(doOperator(loading));
+        SetLoading(do_operator(loading));
     }
 
-    std::string ind;
-    if (recv_msg(ind) > 0)
-    {        
-        size_t i = std::stoi(ind);
-        if (i >= 0 && splits.size() > i && doOperator(splits.at(i)))
+    size_t i = GetSplitIndex();
+    if (i >= 0 && splits.size() > i)
+    {
+        if (do_operator(splits.at(i)))
+        {
             Split();
-    }
+        }
+    } 
 }
 
-// void Splitter::test_it() {
-//     std::fstream file;
-//     file.open("/splitnx.log", std::fstream::app);
-//     file << "Memory: " << readMemory(splits[0].address, splits[0].size, splits[0].type) << std::endl;
-//     file.close();
-// }
-
-bool Splitter::Connect()
+void Splitter::Connect()
 {
     close(sock);
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -76,94 +60,107 @@ bool Splitter::Connect()
     serv_addr.sin_port = htons(port);
     inet_aton(ip.c_str(), &serv_addr.sin_addr);
 
-    // struct timeval tv = {
-    //     .tv_sec = 0,
-    //     .tv_usec = 100000
-    // };
-
-    // setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-    // setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-
     connected = (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0);
 
-    return connected;
+    if (connected && loading.valid)
+    {
+        send_cmd("initgametime\r\n");
+    }
 }
 
 void Splitter::Split()
 {
-    send_msg("startorsplit\r\n");
+    send_cmd("startorsplit\r\n");
 }
 
 void Splitter::Reset()
 {
-    send_msg("reset\r\n");
+    send_cmd("reset\r\n");
 }
 
 void Splitter::Undo()
 {
-    send_msg("unsplit\r\n");
+    send_cmd("unsplit\r\n");
 }
 
 void Splitter::Skip()
 {
-    send_msg("skipsplit\r\n");
+    send_cmd("skipsplit\r\n");
 }
 
 void Splitter::SetLoading(bool loadingState) 
 {
     if (loadingState) 
-        send_msg("pausegametime\r\n");
+        send_cmd("pausegametime\r\n");
     else
-        send_msg("unpausegametime\r\n");
+        send_cmd("unpausegametime\r\n");
     
+}
+
+size_t Splitter::GetSplitIndex()
+{
+    std::string ind = "-1"; // safe default value if not connected
+    recv_msg("getsplitindex\r\n", ind);
+    return std::stoi(ind);
 }
 
 std::string Splitter::GetSplitName()
 {
-    auto time = GetSplitTime();
-    if (time == "0:00") return ""; // If timer is not started then this will hang
-    if (send_msg("getcurrentsplitname\r\n") > 0)
-    {
-        std::string name;
-        if (recv_msg(name) > 0)
-        {
-            return name;
-        }
-    }
-    return "";
+    if (GetSplitTime() == "0:00") return ""; // If timer is not started then this will hang
+
+    std::string name = "";
+    recv_msg("getcurrentsplitname\r\n", name);
+    return name;
 }
 
 std::string Splitter::GetSplitTime()
 {
-    if (send_msg("getcurrenttime\r\n") > 0)
-    {
-        std::string time;
-        if (recv_msg(time) > 0)
-        {
-            time.erase(time.find_last_of('.'));
-            return time;
-        }
-    }
-    return "";
+    std::string time;
+    recv_msg("getcurrenttime\r\n", time);
+    time.erase(time.find_last_of('.'));
+    return time;
 }
 
-ssize_t Splitter::send_msg(std::string msg)
+ssize_t Splitter::send_cmd(std::string cmd)
 {
-    return send(sock, msg.c_str(), msg.length(), 0);
-}
+    if (!connected) return -1;
 
-ssize_t Splitter::recv_msg(std::string &msg)
-{
-    char buff[64];
-    ssize_t ret = recv(sock, buff, 32, 0);
-    msg = std::string(buff);
-    msg.erase(msg.find_first_of('\r'));
+    m.lock();
+    ssize_t ret = send(sock, cmd.c_str(), cmd.length(), 0);
+    if (ret < 0) connected = false;
+    m.unlock();
+
     return ret;
 }
 
-bool doOperator(split s)
+ssize_t Splitter::recv_msg(std::string cmd, std::string &resp)
 {
-    u64 val = readMemory(s.address, s.size, s.type);
+    if (!connected) return -1;
+    
+    m.lock();
+    ssize_t ret = send(sock, cmd.c_str(), cmd.length(), 0);
+    if (ret < 0) connected = false;
+
+    if (connected)
+    {
+        char buff[64];
+        ret = recv(sock, buff, 32, 0);
+
+        if (ret < 0) connected = false;
+        else
+        {
+            resp = std::string(buff);
+            resp.erase(resp.find_first_of('\r'));
+        }
+    }
+    m.unlock();
+
+    return ret;
+}
+
+bool Splitter::do_operator(split s)
+{
+    u64 val = read_memory(s);
 
     if (s.op == "==")
         return val == s.value;
@@ -181,18 +178,19 @@ bool doOperator(split s)
         return false;
 }
 
-u64 readMemory(u64 address, size_t size, std::string type)
+u64 Splitter::read_memory(split s)
 {
     dmntchtForceOpenCheatProcess();
     DmntCheatProcessMetadata metadata;
     dmntchtGetCheatProcessMetadata(&metadata);
+
     u64 offset = 0;
-    if (type == "heap")
+    if (s.type == "heap")
         offset = metadata.heap_extents.base;
-    if (type == "main") 
+    if (s.type == "main") 
         offset = metadata.main_nso_extents.base;
 
     u64 val;
-    dmntchtReadCheatProcessMemory(offset + address, &val, size / 8);
-    return val & ((1 << size) - 1);
+    dmntchtReadCheatProcessMemory(offset + s.address, &val, s.size / 8);
+    return val & ((1 << s.size) - 1);
 }
