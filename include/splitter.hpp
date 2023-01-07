@@ -84,6 +84,7 @@ private:
     Splits splits;
     std::mutex m;
     bool enabled = false;
+    bool connected = false;
 
     ssize_t send_cmd(std::string cmd);
     ssize_t recv_msg(std::string cmd, std::string& resp);

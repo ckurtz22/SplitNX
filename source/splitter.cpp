@@ -51,13 +51,18 @@ void Splitter::Connect(std::string ip, int port)
     inet_aton(ip.c_str(), &serv_addr.sin_addr);
 
     connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    fcntl(sock, F_SETFL, opt);
 }
 
 bool Splitter::IsConnected()
 {
+    if (!connected)
+    {
     struct sockaddr_in addr; 
     socklen_t len; 
-    return getpeername(sock, (struct sockaddr*)&addr, &len) == 0;
+        connected = getpeername(sock, (struct sockaddr*)&addr, &len) == 0;
+    }
+    return connected;
 }
 
 void Splitter::Split()
@@ -98,7 +103,7 @@ size_t Splitter::GetSplitIndex()
 
 std::string Splitter::GetSplitName()
 {
-    if (GetSplitTime() == "0:00") return ""; // If timer is not started then this will hang
+    if (GetSplitTime() == "0:00") return ""; // If timer is not started then this could hang
 
     std::string name = "";
     if (recv_msg("getcurrentsplitname\r\n", name) > 0)
@@ -127,6 +132,7 @@ ssize_t Splitter::send_cmd(std::string cmd)
     ssize_t ret = send(sock, cmd.c_str(), cmd.length(), 0);
     m.unlock();
 
+    if (ret < 0) connected = false;
     return ret;
 }
 
@@ -139,14 +145,7 @@ ssize_t Splitter::recv_msg(std::string cmd, std::string &resp)
     if (this->IsConnected())
     {
         char buff[64];
-        svcSleepThread(5e7);
-        int i = 0;
-        do 
-        {
-            svcSleepThread(1e6);
             ret = recv(sock, buff, 32, 0);
-        } while (ret < 0 && i++ < 100);
-
         if (ret >= 0)
         {
             resp = std::string(buff);
@@ -155,6 +154,7 @@ ssize_t Splitter::recv_msg(std::string cmd, std::string &resp)
     }
     m.unlock();
 
+    if (ret < 0) connected = false;
     return ret;
 }
 

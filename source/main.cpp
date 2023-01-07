@@ -39,10 +39,10 @@ public:
                 renderer->drawRect(0, 0, 125, 20, a(tsl::style::color::ColorFrameBackground));
                 if (time_string != "0:00")
                 {
-                    // renderer->drawRect(0, 0, 125, 35, a(tsl::style::color::ColorFrameBackground));
-                    // renderer->drawString(split_string.c_str(), false, 0, 30, 15, renderer->a(tsl::Color(255,255,255,255)));
+                    renderer->drawRect(0, 0, 125, 35, a(tsl::style::color::ColorFrameBackground));
+                    renderer->drawString(split_string.c_str(), false, 0, 30, 15, renderer->a(tsl::Color(255,255,255,255)));
                 }
-                // renderer->drawString(time_string.c_str(), false, 0, 15, 15, renderer->a(tsl::Color(255,255,255,255)));
+                renderer->drawString(time_string.c_str(), false, 0, 15, 15, renderer->a(tsl::Color(255,255,255,255)));
             }
 		});
 
@@ -54,8 +54,8 @@ public:
     // Called once every frame to update values
     virtual void update() override {
         tsl::hlp::requestForeground(false);
-        // time_string = splitter.GetSplitTime();
-        // split_string = splitter.GetSplitName();
+        time_string = splitter.GetSplitTime();
+        split_string = splitter.GetSplitName();
     }
 
     // Called once every frame to handle inputs not handled by other UI elements
