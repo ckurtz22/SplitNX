@@ -38,7 +38,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
 APP_TITLE	:=	SplitNX
-APP_VERSION	:=	2.0.0
+APP_VERSION	:=	2.1.1
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source lib/Atmosphere-libs/libstratosphere/source/dmnt

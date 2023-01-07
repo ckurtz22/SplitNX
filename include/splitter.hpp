@@ -63,7 +63,8 @@ public:
     Splitter();
     void Reload(Splits splits);
     void Update();
-    void Connect(std::string ip, int port);
+    void Connect(std::string ip_in, int port_in);
+    void Reconnect();
     void Split();
     void Reset();
     void Undo();
@@ -86,6 +87,9 @@ private:
     std::mutex m;
     bool enabled = false;
     bool connected = false;
+
+    std::string ip = "";
+    int port = -1;
 
     ssize_t send_cmd(std::string cmd);
     ssize_t recv_msg(std::string cmd, std::string& resp);

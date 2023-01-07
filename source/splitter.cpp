@@ -21,7 +21,9 @@ void Splitter::Reload(Splits s) {
 
 void Splitter::Update()
 {
-    if (!enabled || !this->IsConnected()) return;
+    if (!enabled) return;
+    if (!this->IsConnected()) this->Reconnect();
+    if (!this->IsConnected()) return;
 
     if (splits.loading.valid) 
     {
@@ -38,8 +40,18 @@ void Splitter::Update()
     } 
 }
 
-void Splitter::Connect(std::string ip, int port)
+void Splitter::Connect(std::string ip_in, int port_in)
 {
+    ip = ip_in;
+    port = port_in;
+    
+    Reconnect();
+}
+
+void Splitter::Reconnect()
+{
+    if (port < 0) return;
+
     close(sock);
     sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -52,6 +64,7 @@ void Splitter::Connect(std::string ip, int port)
 
     connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
     fcntl(sock, F_SETFL, opt);
+
 }
 
 bool Splitter::IsConnected()
