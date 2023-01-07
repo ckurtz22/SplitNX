@@ -1,71 +1,63 @@
 #include "splitter.hpp"
 #include "dmntcht.h"
 
-#include <fstream>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <fcntl.h>
 
-Splitter::Splitter(std::string filename)
+#include <fstream>
+#include <errno.h>
+
+Splitter::Splitter()
 {
-    connected = false;
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    Reload(filename);
+
 }
 
-void Splitter::Reload(std::string filename) {
-    std::fstream file;
-    file.open(filename, std::fstream::in);
-    file >> ip;
-    file >> port;
-
-    split s;
-    s.valid = true;
-    splits.clear();
-    while (file >> s.type >> std::hex >> s.address >> std::dec >> s.op >> s.size >> s.value)
-    {
-        if (s.op.find("load") != std::string::npos) {
-            s.op = s.op.substr(4);
-            loading = s;
-        }
-        else 
-            splits.push_back(s);
-    }
-    file.close();
+void Splitter::Reload(Splits s) {
+    splits = s;
 }
 
 void Splitter::Update()
 {
-    if (!connected) return;
+    if (!enabled || !this->IsConnected()) return;
 
-    if (loading.valid) 
+    if (splits.loading.valid) 
     {
-        SetLoading(do_operator(loading));
+        SetLoading(do_operator(splits.loading));
     }
 
     size_t i = GetSplitIndex();
-    if (i >= 0 && splits.size() > i)
+    if (i >= 0 && splits.splits.size() > i)
     {
-        if (do_operator(splits.at(i)))
+        if (do_operator(splits.splits.at(i)))
         {
             Split();
         }
     } 
 }
 
-void Splitter::Connect()
+void Splitter::Connect(std::string ip, int port)
 {
     close(sock);
     sock = socket(AF_INET, SOCK_STREAM, 0);
 
+    int opt = fcntl(sock, F_GETFL);
+    fcntl(sock, F_SETFL, opt | O_NONBLOCK);
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
     inet_aton(ip.c_str(), &serv_addr.sin_addr);
 
-    connected = (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0);
+    connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+}
 
-    if (connected && loading.valid)
-    {
-        send_cmd("initgametime\r\n");
-    }
+bool Splitter::IsConnected()
+{
+    struct sockaddr_in addr; 
+    socklen_t len; 
+    return getpeername(sock, (struct sockaddr*)&addr, &len) == 0;
 }
 
 void Splitter::Split()
@@ -109,25 +101,30 @@ std::string Splitter::GetSplitName()
     if (GetSplitTime() == "0:00") return ""; // If timer is not started then this will hang
 
     std::string name = "";
-    recv_msg("getcurrentsplitname\r\n", name);
-    return name;
+    if (recv_msg("getcurrentsplitname\r\n", name) > 0)
+    {
+        return name;
+    }
+    return "";
 }
 
 std::string Splitter::GetSplitTime()
 {
-    std::string time;
-    recv_msg("getcurrenttime\r\n", time);
-    time.erase(time.find_last_of('.'));
-    return time;
+    std::string time = "0:00.00";
+    if (recv_msg("getcurrenttime\r\n", time) > 0)
+    {
+        time.erase(time.find_last_of('.'));
+        return time;
+    }
+    return "0:00";
 }
 
 ssize_t Splitter::send_cmd(std::string cmd)
 {
-    if (!connected) return -1;
+    if (!this->IsConnected()) return -1;
 
     m.lock();
     ssize_t ret = send(sock, cmd.c_str(), cmd.length(), 0);
-    if (ret < 0) connected = false;
     m.unlock();
 
     return ret;
@@ -135,19 +132,22 @@ ssize_t Splitter::send_cmd(std::string cmd)
 
 ssize_t Splitter::recv_msg(std::string cmd, std::string &resp)
 {
-    if (!connected) return -1;
-    
+    if (!this->IsConnected()) return -1;
     m.lock();
     ssize_t ret = send(sock, cmd.c_str(), cmd.length(), 0);
-    if (ret < 0) connected = false;
 
-    if (connected)
+    if (this->IsConnected())
     {
         char buff[64];
-        ret = recv(sock, buff, 32, 0);
+        svcSleepThread(5e7);
+        int i = 0;
+        do 
+        {
+            svcSleepThread(1e6);
+            ret = recv(sock, buff, 32, 0);
+        } while (ret < 0 && i++ < 100);
 
-        if (ret < 0) connected = false;
-        else
+        if (ret >= 0)
         {
             resp = std::string(buff);
             resp.erase(resp.find_first_of('\r'));
@@ -185,9 +185,9 @@ u64 Splitter::read_memory(split s)
     dmntchtGetCheatProcessMetadata(&metadata);
 
     u64 offset = 0;
-    if (s.type == "heap")
+    if (s.memory == "heap")
         offset = metadata.heap_extents.base;
-    if (s.type == "main") 
+    if (s.memory == "main") 
         offset = metadata.main_nso_extents.base;
 
     u64 val;

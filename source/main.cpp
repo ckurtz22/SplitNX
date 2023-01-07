@@ -1,35 +1,33 @@
 #define TESLA_INIT_IMPL // If you have more than one file using the tesla header, only define this in the main one
 #include <tesla.hpp>    // The Tesla Header
+#include <json.hpp>
+#include <fstream>
+#include <dirent.h>
 
 #include "splitter.hpp"
 #include "dmntcht.h"
 
 
+using json = nlohmann::json;
+bool run_threads = true;
 
-Thread t0;
-Splitter* splitter = nullptr;
-bool splitting_enabled = false;
-bool thread_execute = true;
-
-
-void updateSplitter(void*)
+void updateSplitter(void* arg)
 {
-    while (thread_execute)
+    Splitter* splitter = (Splitter*) arg;
+    while (run_threads)
     {
-        if (splitting_enabled)
-        {
-            if (splitter)
-            {
-                splitter->Update();
-            }
-        }
+        if (splitter)
+            splitter->Update();
         svcSleepThread(1e8);
     }
 }
 
 class SplitterGui : public tsl::Gui {
 public:
-    SplitterGui() { }
+    SplitterGui(Splitter &splitter) :
+        splitter(splitter)
+    { 
+    }
 
     // Called when this Gui gets loaded to create the UI
     // Allocate all elements on the heap. libtesla will make sure to clean them up when not needed anymore
@@ -41,10 +39,10 @@ public:
                 renderer->drawRect(0, 0, 125, 20, a(tsl::style::color::ColorFrameBackground));
                 if (time_string != "0:00")
                 {
-                    renderer->drawRect(0, 0, 125, 35, a(tsl::style::color::ColorFrameBackground));
-                    renderer->drawString(split_string.c_str(), false, 0, 30, 15, renderer->a(tsl::Color(255,255,255,255)));
+                    // renderer->drawRect(0, 0, 125, 35, a(tsl::style::color::ColorFrameBackground));
+                    // renderer->drawString(split_string.c_str(), false, 0, 30, 15, renderer->a(tsl::Color(255,255,255,255)));
                 }
-                renderer->drawString(time_string.c_str(), false, 0, 15, 15, renderer->a(tsl::Color(255,255,255,255)));
+                // renderer->drawString(time_string.c_str(), false, 0, 15, 15, renderer->a(tsl::Color(255,255,255,255)));
             }
 		});
 
@@ -56,18 +54,8 @@ public:
     // Called once every frame to update values
     virtual void update() override {
         tsl::hlp::requestForeground(false);
-        splitting_enabled = true;
-
-        if (splitter)
-        {
-            time_string = splitter->GetSplitTime();
-            split_string = splitter->GetSplitName();
-        }
-        else 
-        {
-            time_string = "0:00";
-            split_string = "";
-        }
+        // time_string = splitter.GetSplitTime();
+        // split_string = splitter.GetSplitName();
     }
 
     // Called once every frame to handle inputs not handled by other UI elements
@@ -78,26 +66,24 @@ public:
             if (keysDown & HidNpadButton_Minus)
             {
                 draw_square = false;
+                splitter.EnableSplitting(false);
                 tsl::hlp::requestForeground(true);
                 tsl::goBack();
                 return true;
             }
             if (keysDown & HidNpadButton_A)
             {
-                if (splitter)
-                    splitter->Split();
+                splitter.Split();
                 return true;
             }
             if (keysDown & HidNpadButton_Y)
             {
-                if (splitter)
-                    splitter->Undo();
+                splitter.Undo();
                 return true;
             }
             if (keysDown & HidNpadButton_X)
             {
-                if (splitter)
-                    splitter->Skip();
+                splitter.Skip();
                 return true;
             }
             if (keysDown & HidNpadButton_Plus)
@@ -111,7 +97,8 @@ public:
     }
 
 private:
-    bool draw_square = true;
+    bool draw_square = false;
+    Splitter& splitter;
     std::string time_string = "0:00";
     std::string split_string = "";
 };
@@ -156,88 +143,212 @@ public:
 };
 */
 
-
-class MainGui : public tsl::Gui {
+class SplitSelect : public tsl::Gui {
+private:
+    Splitter& splitter;
+    std::vector<Splits> splits;
 public:
-    MainGui() { }
+    SplitSelect(Splitter& splitter, std::vector<Splits> splits) :
+        splitter(splitter), splits(splits)
+    { }
 
-    virtual tsl::elm::Element* createUI() override 
-    {
-        // 1. read in /switch/SplitNX/splitter.txt
-        if (!splitter)
-        {
-            splitter = new Splitter("/switch/SplitNX/splitter.txt");
-        }
+    virtual tsl::elm::Element* createUI() override {
+		auto rootFrame = new tsl::elm::OverlayFrame("Select splits to use", " ");
 
-        auto frame = new tsl::elm::OverlayFrame("SplitNx", "Tesla Overlay Version");
+        // A list that can contain sub elements and handles scrolling
         auto list = new tsl::elm::List();
 
-        // 3. Have button for connecting to LiveSplit
-		connect_splitter = new tsl::elm::ListItem("Connect to Livesplit", "Not Connected");
-		connect_splitter->setClickListener([&](uint64_t keys) {
-			if (keys & HidNpadButton_A) {
-                if (splitter)
-                    splitter->Connect();
-				return true;
-			}
-			return false;
-		});
-		list->addItem(connect_splitter);
-
-        // 4. Have button for switching to next Gui
-		auto split_mini = new tsl::elm::ListItem("Start Autosplitter");
-		split_mini->setClickListener([&](uint64_t keys) {
-			if (keys & HidNpadButton_A && (splitter && splitter->IsConnected())) {
-                tsl::hlp::requestForeground(false);
-				tsl::changeTo<SplitterGui>();
-				return true;
-			}
-			return false;
-		});
-		list->addItem(split_mini);
-
-        // 5. Have button for resetting splits
-		auto reset_button = new tsl::elm::ListItem("Reset splits");
-		reset_button->setClickListener([&](uint64_t keys) {
-			if (keys & HidNpadButton_A && splitter) {
-                splitter->Reset();
-				return true;
-			}
-			return false;
-		});
-		list->addItem(reset_button);
-
-        // 2. Show settings on overlay
-        if (splitter)
+        // Create and add a new list item to the list
+        for (auto s : splits)
         {
-            list->addItem(new tsl::elm::ListItem("IP", splitter->GetIp().c_str()));
-            list->addItem(new tsl::elm::ListItem("Port", std::to_string(splitter->GetPort()).c_str()));
-            list->addItem(new tsl::elm::ListItem("Number of splits", std::to_string(splitter->GetNumSplits()).c_str()));
+            auto i = new tsl::elm::ListItem(s.game.c_str(), s.category.c_str());
+            i->setClickListener([this, s](uint64_t keys) {
+                if (keys & HidNpadButton_A)
+                {
+                    this->splitter.Reload(s);
+                    tsl::goBack();
+                    return true;
+                }
+                return false;
+            });
+            list->addItem(i);
         }
+        // list->addItem(new tsl::elm::ListItem("Default List Item"));
 
-        frame->setContent(list);
-        return frame;
+		rootFrame->setContent(list);
+
+		return rootFrame;
     }
 
     // Called once every frame to update values
-    virtual void update() override 
-    {
-        splitting_enabled = false;
-        if (splitter && splitter->IsConnected())
-            connect_splitter->setValue("Connected");
-        else
-            connect_splitter->setValue("Not Connected");
+    virtual void update() override {
 
     }
 
     // Called once every frame to handle inputs not handled by other UI elements
     virtual bool handleInput(u64 keysDown, u64 keysHeld, const HidTouchState &touchPos, HidAnalogStickState joyStickPosLeft, HidAnalogStickState joyStickPosRight) override 
     {
-        return false;   // Return true here to singal the inputs have been consumed
+        if (false) {
+			return true;
+		}
+        
+        return false;
+    }
+};
+
+class MainGui : public tsl::Gui {
+private:
+    Splitter splitter;
+    std::vector<Splits> splits;
+    std::string ip;
+    int port;
+    Thread t_splitter;
+    tsl::hlp::ScopeGuard splitterGuard;
+
+    void loadConfigs()
+    {
+        json configJson;
+        std::string default_config;
+        // Load main config file for IP, port, etc
+        std::ifstream configFile("sdmc:/switch/SplitNX/config.json");
+        if (!configFile.fail()) {
+            try {
+                configFile >> configJson;
+                ip = configJson["ip"].get<std::string>();
+                port = configJson["port"].get<int>();
+                default_config = configJson["default_splits"].get<std::string>();
+            } catch (json::parse_error &e) {}
+        }
+
+        // Load splits config files
+        bool default_loaded = false;
+        DIR *switchnxConfDir = opendir("sdmc:/switch/SplitNX/");
+        if (switchnxConfDir != nullptr) {
+            struct dirent *ent;
+            while ((ent = readdir(switchnxConfDir)) != nullptr) {
+                // Don't read config again
+                if (strcmp(ent->d_name, "config.json") == 0) continue;
+
+                // Make sure file is a json
+                if (std::string(ent->d_name).substr(strlen(ent->d_name) - 5) != ".json") continue;
+
+                // Parse
+                std::ifstream splitsConfig("sdmc:/switch/SplitNX/" + std::string(ent->d_name));
+                if (!splitsConfig.fail()) {
+                    try {
+                        json newSplits;
+                        splitsConfig >> newSplits;
+                        newSplits["file"] = std::string(ent->d_name);
+                        splits.push_back(Splits(newSplits));
+
+                        if (std::string(ent->d_name) == default_config)
+                        {
+                            splitter.Reload(splits.back());
+                            default_loaded = true;
+                        }
+                    } catch (json::parse_error &e) {}
+                }
+            }
+        }
+        closedir(switchnxConfDir);
+
+        if (!default_loaded && splits.size() > 0) splitter.Reload(splits.front());
     }
 
-private:
-    tsl::elm::ListItem* connect_splitter;
+public:
+    MainGui() :
+        splitterGuard([&] { run_threads = false; threadWaitForExit(&t_splitter); threadClose(&t_splitter); })
+    {
+        loadConfigs();
+
+        run_threads = true;
+        threadCreate(&t_splitter, updateSplitter, (void*)&this->splitter, NULL, 0x800, 0x3F, -2);
+        threadStart(&t_splitter);
+    }
+
+    virtual tsl::elm::Element* createUI() override 
+    {
+        auto frame = new tsl::elm::OverlayFrame("SplitNX", "Tesla Overlay Version");
+        auto list = new tsl::elm::List();
+
+        // 3. Have button for connecting to LiveSplit
+		auto connect_button = new tsl::elm::ListItem("Connect to Livesplit", "Not Connected");
+		connect_button->setClickListener([this, connect_button](uint64_t keys) {
+			if (keys & HidNpadButton_A) {
+                splitter.Connect(ip, port);
+                return true;
+            }
+
+			return false;
+		});
+		list->addItem(connect_button);
+
+        // 4. Have button for switching to next Gui
+		auto start_button = new tsl::elm::ListItem("Start Autosplitter");
+		start_button->setClickListener([&](uint64_t keys) {
+			if (keys & HidNpadButton_A && splitter.IsConnected()) {
+                tsl::hlp::requestForeground(false);
+                splitter.EnableSplitting(true);
+				tsl::changeTo<SplitterGui>(splitter);
+				return true;
+			}
+			return false;
+		});
+		list->addItem(start_button);
+
+        // 5. Have button for resetting splits
+		auto reset_button = new tsl::elm::ListItem("Reset splits");
+		reset_button->setClickListener([&](uint64_t keys) {
+			if (keys & HidNpadButton_A) {
+                splitter.Reset();
+				return true;
+			}
+			return false;
+		});
+		list->addItem(reset_button);
+
+        auto select_button = new tsl::elm::ListItem("Select Splits", splitter.GetSplits().game + "\n" + splitter.GetSplits().category);
+        select_button->setClickListener([&](uint64_t keys) {
+            if (keys & HidNpadButton_A)
+            {
+                tsl::changeTo<SplitSelect>(splitter, splits);
+                return true;
+            }
+            return false;
+        });
+        list->addItem(select_button);
+
+        // 2. Show settings on overlay
+        try
+        {
+            list->addItem(new tsl::elm::ListItem("IP", ip.c_str()));
+            list->addItem(new tsl::elm::ListItem("Port", std::to_string(port).c_str()));
+        } catch (json::parse_error &e) { }
+        
+
+        // list will always have click listener running, use it to update connected text
+        list->setClickListener([this, connect_button, select_button](uint64_t keys) {
+            if (this->splitter.IsConnected())
+                connect_button->setValue("Connected");
+            else
+                connect_button->setValue("Not Connected");
+
+            select_button->setValue(splitter.GetSplits().game + "\n" + splitter.GetSplits().category);
+			return false;
+		});
+
+        frame->setContent(list);
+        return frame;
+    }
+
+    // Called once every frame to update values
+    virtual void update() override { }
+
+    // Called once every frame to handle inputs not handled by other UI elements
+    virtual bool handleInput(u64 keysDown, u64 keysHeld, const HidTouchState &touchPos, HidAnalogStickState joyStickPosLeft, HidAnalogStickState joyStickPosRight) override 
+    {
+        return false;   // Return true here to singal the inputs have been consumed
+    }
 };
 
 class SplitterOverlay : public tsl::Overlay {
@@ -249,11 +360,6 @@ public:
         fsdevMountSdmc();
         dmntchtInitialize();
         socketInitializeDefault();
-
-        threadCreate(&t0, updateSplitter, NULL, NULL, 0x400, 0x3F, -2);
-        thread_execute = true;
-        splitting_enabled = false;
-        threadStart(&t0);
     }
 
     // Called at the end to clean up all services previously initialized
@@ -262,10 +368,6 @@ public:
         socketExit();
         dmntchtExit();
         fsdevUnmountAll();
-
-        thread_execute = false;
-        threadWaitForExit(&t0);
-        threadClose(&t0);
     }
 
     // Called before overlay wants to change from invisible to visible state
