@@ -55,7 +55,8 @@ public:
     virtual void update() override {
         tsl::hlp::requestForeground(false);
         time_string = splitter.GetSplitTime();
-        split_string = splitter.GetSplitName();
+        std::string nextName = splitter.GetSplitName();
+        if (nextName != "") split_string = nextName;
     }
 
     // Called once every frame to handle inputs not handled by other UI elements

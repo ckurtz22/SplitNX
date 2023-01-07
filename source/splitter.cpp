@@ -8,7 +8,7 @@
 #include <fcntl.h>
 
 #include <fstream>
-#include <errno.h>
+
 
 Splitter::Splitter()
 {
@@ -101,9 +101,19 @@ size_t Splitter::GetSplitIndex()
     return std::stoi(ind);
 }
 
+bool Splitter::TimerRunning()
+{
+    std::string phase = "NotRunning";
+    if (recv_msg("getcurrenttimerphase\r\n", phase) > 0)
+    {
+        return phase == "Running";
+    }
+    return false;
+}
+
 std::string Splitter::GetSplitName()
 {
-    if (GetSplitTime() == "0:00") return ""; // If timer is not started then this could hang
+    if (!TimerRunning()) return ""; // If timer is not running then this will hang
 
     std::string name = "";
     if (recv_msg("getcurrentsplitname\r\n", name) > 0)

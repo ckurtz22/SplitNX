@@ -74,6 +74,7 @@ public:
     size_t GetSplitIndex();
     std::string GetSplitName();
     std::string GetSplitTime();
+    bool TimerRunning();
 
     // int GetNumSplits() const { return splits.splits.size(); };
     bool IsConnected();
