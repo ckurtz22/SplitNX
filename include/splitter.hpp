@@ -48,10 +48,17 @@ struct Splits
         file = splitsJson["file"].get<std::string>();
         game = splitsJson["game"].get<std::string>();
         category = splitsJson["category"].get<std::string>();
-        loading = split(splitsJson["loading"]);
+        try
+        { 
+            loading = split(splitsJson["loading"]);
+        } catch(const json::type_error& e) { loading = split(); }
+        
         for (auto j : splitsJson["splits"])
         {
-            splits.push_back(split(j));
+            try
+            {
+                splits.push_back(split(j));
+            } catch(const json::type_error& e) {}
         }
     }
     Splits() {}

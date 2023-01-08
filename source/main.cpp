@@ -36,11 +36,14 @@ public:
 			renderer->clearScreen();
             if (draw_square)
             {
-                renderer->drawRect(0, 0, 125, 20, a(tsl::style::color::ColorFrameBackground));
                 if (time_string != "0:00")
                 {
                     renderer->drawRect(0, 0, 125, 35, a(tsl::style::color::ColorFrameBackground));
                     renderer->drawString(split_string.c_str(), false, 0, 30, 15, renderer->a(tsl::Color(255,255,255,255)));
+                }
+                else
+                {
+                    renderer->drawRect(0, 0, 125, 20, a(tsl::style::color::ColorFrameBackground));
                 }
                 renderer->drawString(time_string.c_str(), false, 0, 15, 15, renderer->a(tsl::Color(255,255,255,255)));
             }
@@ -247,7 +250,7 @@ private:
                             splitter.Reload(splits.back());
                             default_loaded = true;
                         }
-                    } catch (json::parse_error &e) {}
+                    } catch (json::parse_error &e) {} catch (json::type_error &e) {}
                 }
             }
         }
